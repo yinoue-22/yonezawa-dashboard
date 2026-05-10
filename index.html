@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="米沢観光データダッシュボード｜主要イベントの人流・車両・宿泊動向を可視化">
+<title>米沢観光データダッシュボード｜米沢観光推進機構</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+<style>
+:root{
+  --primary:#8b1d3f;
+  --primary-dark:#6a1530;
+  --secondary:#1e3a5f;
+  --accent:#c9a96e;
+  --bg:#faf6f0;
+  --paper:#fdfaf4;
+  --card-bg:#fff;
+  --text:#2a2622;
+  --text-muted:#7a6f64;
+  --border:#e6dfd1;
+  --shiki:#3d6e4f;
+  --hanabi:#a01c1c;
+  --factory:#3b6a8f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","游明朝",serif;
+  background:var(--bg);color:var(--text);line-height:1.7;
+  font-feature-settings:"palt";
+}
+.container{max-width:1280px;margin:0 auto;padding:0 32px}
+.site-header{
+  background:var(--paper);border-bottom:1px solid var(--border);
+  padding:18px 0;position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(8px);background:rgba(253,250,244,0.95);
+}
+.site-header-inner{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-mark{
+  width:42px;height:42px;background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  font-family:"Hiragino Mincho ProN",serif;font-weight:700;font-size:18px;letter-spacing:-0.5px;
+}
+.brand-text{display:flex;flex-direction:column;gap:0px}
+.brand-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:0.5px}
+.brand-sub{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;font-family:"Helvetica Neue",sans-serif;text-transform:uppercase}
+.year-nav{display:flex;gap:0;background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.year-btn{
+  padding:8px 18px;background:transparent;border:none;cursor:pointer;font-family:inherit;
+  font-size:13px;color:var(--text-muted);font-weight:500;border-right:1px solid var(--border);
+  transition:all 0.2s;
+}
+.year-btn:last-child{border-right:none}
+.year-btn:hover{background:#faf6f0;color:var(--text)}
+.year-btn.active{background:var(--primary);color:#fff;font-weight:700}
+.year-btn.disabled{color:#c4baa8;cursor:not-allowed;background:#f5f0e6}
+.hero{
+  background:linear-gradient(135deg,#faf6f0 0%,#f5efe2 100%);
+  padding:48px 0 40px;border-bottom:1px solid var(--border);
+}
+.hero-eyebrow{
+  font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;
+  font-family:"Helvetica Neue",sans-serif;text-transform:uppercase;margin-bottom:16px;
+}
+.hero h1{
+  font-size:32px;font-weight:700;color:var(--text);line-height:1.4;
+  margin-bottom:18px;letter-spacing:0.5px;
+}
+.hero h1 em{font-style:normal;color:var(--primary);font-weight:700;border-bottom:2px solid var(--accent)}
+.hero-meta{display:flex;gap:24px;flex-wrap:wrap;color:var(--text-muted);font-size:13px}
+.hero-meta span{display:flex;align-items:center;gap:6px}
+.draft-banner{
+  background:#fdf6e3;border-top:1px solid #e8d49b;border-bottom:1px solid #e8d49b;
+  padding:8px 0;font-size:11.5px;color:#8b6914;text-align:center;
+  letter-spacing:1px;font-family:"Helvetica Neue",sans-serif;
+}
+.tabs-nav{background:var(--paper);border-bottom:2px solid var(--border);position:sticky;top:79px;z-index:99;padding-top:6px}
+.tabs-nav-inner{display:flex;flex-direction:column;gap:0}
+.tabs-hint{font-size:10.5px;color:var(--accent);font-weight:700;letter-spacing:2.5px;font-family:"Helvetica Neue",sans-serif;text-transform:uppercase;padding:6px 0 8px;opacity:0.75}
+.tabs{display:flex;gap:6px;margin-bottom:0;overflow-x:auto;padding-bottom:0;align-items:flex-end}
+.tab{padding:12px 18px;background:#fff;border:1px solid var(--border);border-bottom:none;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);font-weight:500;border-radius:6px 6px 0 0;white-space:nowrap;transition:all 0.15s;letter-spacing:0.3px;position:relative;margin-bottom:-2px}
+.tab:hover{background:#fdf6e3;color:var(--primary);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 -2px 6px rgba(0,0,0,0.04)}
+.tab.active{background:var(--primary);color:#fff;font-weight:700;border-color:var(--primary);transform:translateY(-1px)}
+.tab.active::after{content:"";position:absolute;bottom:-2px;left:0;right:0;height:3px;background:var(--primary)}
+.tabs-wrapper{padding-top:6px}
+main{padding:40px 0 60px}
+.section-header{margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.section-num{
+  font-family:"Helvetica Neue",sans-serif;font-size:11px;letter-spacing:3px;
+  color:var(--accent);font-weight:700;margin-bottom:8px;text-transform:uppercase;
+}
+.section-h2{font-size:24px;font-weight:700;color:var(--text);letter-spacing:0.5px;line-height:1.4}
+.section-lead{font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.8}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:32px}
+.kpi-card{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:6px;
+  padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,0.02);
+}
+.kpi-label{font-size:11px;color:var(--text-muted);margin-bottom:8px;letter-spacing:1px;font-weight:600;font-family:"Helvetica Neue",sans-serif;text-transform:uppercase}
+.kpi-value{font-size:28px;font-weight:700;color:var(--secondary);line-height:1.1;font-family:"Hiragino Mincho ProN",serif}
+.kpi-unit{font-size:13px;font-weight:400;color:var(--text-muted);margin-left:4px;font-style:italic}
+.kpi-change{font-size:11.5px;margin-top:6px;font-weight:600;letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif}
+.kpi-change.up{color:#2d6a4f}
+.kpi-change.down{color:#a01c1c}
+.section-card{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:28px 32px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
+.section-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:10px;font-family:"Hiragino Mincho ProN",serif}
+.section-title::before{content:"";display:inline-block;width:3px;height:16px;background:var(--primary)}
+.section-desc{font-size:12.5px;color:var(--text-muted);margin-bottom:22px;padding-left:13px;line-height:1.7}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+.chart-container{position:relative;height:280px}
+.chart-container.tall{height:340px}
+.note{
+  background:#fdf6e3;border-left:3px solid var(--accent);padding:14px 18px;
+  margin-bottom:20px;font-size:12.5px;color:#6a4f1a;border-radius:4px;line-height:1.8;
+}
+.highlights{
+  background:var(--paper);border:1px solid var(--border);border-radius:6px;
+  padding:24px 28px;margin-bottom:24px;
+}
+.highlights h3{
+  font-size:16px;font-weight:700;color:var(--text);margin-bottom:14px;
+  border-bottom:1px solid var(--border);padding-bottom:10px;font-family:"Hiragino Mincho ProN",serif;
+}
+.highlights ul{list-style:none;padding:0}
+.highlights li{font-size:13px;padding:6px 0;line-height:1.85;color:var(--text)}
+.hl-tag{display:inline-block;padding:2px 9px;border-radius:2px;font-size:10.5px;font-weight:700;margin-right:8px;color:#fff;letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif}
+.hl-tag.zentai{background:#475569}.hl-tag.shinai{background:#8b1d3f}.hl-tag.okitama{background:#3d6e4f}
+.hl-tag.kennai{background:#c9a96e;color:#3a2a0a}.hl-tag.kengai{background:#94a3b8}.hl-tag.shukuhaku{background:#a36b7e}.hl-tag.jikan{background:#1e3a5f}
+.comp-table{width:100%;border-collapse:collapse;font-size:13px;font-family:"Helvetica Neue",sans-serif}
+.comp-table th{background:var(--bg);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);font-weight:700;color:var(--text);font-size:12px;white-space:nowrap;letter-spacing:0.5px}
+.comp-table th.num,.comp-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.comp-table td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.comp-table tr.cat-subtotal td{background:#fdf6e3;font-weight:700;border-top:1px solid var(--accent)}
+.comp-table tr.grand-total td{background:var(--secondary);color:#fff;font-weight:700;font-size:13.5px}
+.delta-up{color:#2d6a4f;font-weight:600}
+.delta-down{color:#a01c1c;font-weight:600}
+.data-source-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-source-table th{background:var(--bg);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);font-weight:700;color:var(--text);font-size:12px;letter-spacing:0.3px}
+.data-source-table td{padding:9px 12px;border-bottom:1px solid var(--border)}
+.status-pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;font-family:"Helvetica Neue",sans-serif}
+.status-pill.pending{background:#fef3c7;color:#8b6914}
+.status-pill.ready{background:#d1e7dd;color:#0f5132}
+.coming-soon{
+  text-align:center;padding:80px 40px;background:var(--paper);
+  border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);
+}
+.coming-soon h3{font-family:"Hiragino Mincho ProN",serif;font-size:22px;color:var(--text);margin-bottom:12px}
+.coming-soon p{font-size:14px;line-height:1.9}
+.site-footer{
+  background:var(--secondary);color:#cdd6e0;padding:40px 0 24px;margin-top:60px;
+  font-size:12px;line-height:1.9;
+}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:24px}
+@media(max-width:768px){.footer-grid{grid-template-columns:1fr}}
+.footer-brand{font-size:14px;color:#fff;font-weight:700;margin-bottom:8px}
+.footer-grid h4{font-size:11px;letter-spacing:2px;color:var(--accent);margin-bottom:10px;font-family:"Helvetica Neue",sans-serif;text-transform:uppercase}
+.footer-bottom{border-top:1px solid #2c4870;padding-top:16px;font-size:11px;color:#8a9bb3;letter-spacing:0.5px}
+
+.exec-summary{background:linear-gradient(135deg,#fdf6e3 0%,#fef9c3 100%);border:1px solid var(--accent);border-left:4px solid var(--accent);border-radius:8px;padding:22px 28px;margin-bottom:24px;box-shadow:0 2px 8px rgba(201,169,110,0.1)}
+.exec-summary-eyebrow{font-size:10px;letter-spacing:3px;color:#8b6914;font-weight:700;text-transform:uppercase;font-family:"Helvetica Neue",sans-serif}
+.exec-summary-headline{font-size:18px;font-weight:700;color:var(--text);margin:8px 0 16px;line-height:1.55;font-family:"Hiragino Mincho ProN",serif}
+.exec-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px}
+@media(max-width:900px){.exec-summary-grid{grid-template-columns:1fr}}
+.exec-summary-label{font-size:11px;color:var(--secondary);font-weight:700;letter-spacing:0.5px;margin-bottom:8px;border-bottom:1px solid rgba(201,169,110,0.4);padding-bottom:4px;font-family:"Helvetica Neue",sans-serif}
+.exec-summary ul{list-style:none;padding:0;margin:0}
+.exec-summary li{font-size:12.5px;color:var(--text);line-height:1.75;padding:4px 0 4px 14px;position:relative}
+.exec-summary li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:700}
+.exec-summary li strong{color:var(--primary);font-weight:700}
+.exec-summary-mock{background:linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%);border-left-color:#94a3b8;border-color:#cbd5e1}
+.exec-summary-mock .exec-summary-eyebrow{color:#475569}
+.exec-summary-mock li::before{color:#94a3b8}
+.exec-summary-mock li strong{color:#475569}
+
+.dummy-banner{background:repeating-linear-gradient(45deg,#fef3c7,#fef3c7 12px,#fde68a 12px,#fde68a 24px);border:2px dashed #ca8a04;border-radius:6px;padding:14px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px;color:#78350f;font-size:13px;line-height:1.6}
+.dummy-banner-icon{font-size:24px;flex-shrink:0}
+.dummy-banner strong{color:#7c2d12;font-weight:800;letter-spacing:1px;font-family:"Helvetica Neue",sans-serif}
+
+.partial-banner{background:linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%);border:2px solid #3b82f6;border-left:4px solid #1e3a5f;border-radius:6px;padding:14px 22px;margin-bottom:20px;display:flex;align-items:center;gap:14px;color:#1e3a5f;font-size:13px;line-height:1.6}
+.partial-banner-icon{font-size:22px;flex-shrink:0}
+.partial-banner strong{color:#1e3a5f;font-weight:800;letter-spacing:1px;font-family:"Helvetica Neue",sans-serif}
+
+.osm-map{height:560px;width:100%;border:1px solid var(--border);border-radius:6px;z-index:1}
+.osm-legend{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:12px;align-items:center}
+.osm-legend-item{display:flex;align-items:center;gap:6px}
+.osm-legend-item .pin{width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.6;margin:10px 14px}
+.leaflet-popup-content strong{display:block;font-size:13px;color:var(--primary);margin-bottom:4px;font-family:"Hiragino Mincho ProN",serif}
+.leaflet-popup-content .meta{color:var(--text-muted);font-size:11px}
+.leaflet-popup-content .badge-cam{background:#a01c1c;color:#fff;padding:1px 6px;border-radius:2px;font-size:10px;font-weight:700;margin-right:4px}
+.leaflet-popup-content .badge-fes{background:#c9a96e;color:#3a2a0a;padding:1px 6px;border-radius:2px;font-size:10px;font-weight:700;margin-right:4px}
+
+.hero-lead{font-size:14px;color:var(--text);line-height:1.8;margin:14px 0 16px;max-width:760px}
+.hero-events{background:rgba(255,255,255,0.7);border-left:3px solid var(--accent);border-radius:4px;padding:12px 18px;margin-bottom:18px;font-size:12.5px}
+.hero-events-label{font-weight:700;color:var(--accent);margin-bottom:6px;font-size:11px;letter-spacing:1px}
+.hero-events ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 16px}
+.hero-events li{color:var(--text);line-height:1.7}
+.hero-events li strong{color:var(--primary)}
+
+.sns-event-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.sns-event-btn{padding:8px 14px;background:#fff;border:1px solid var(--border);border-radius:18px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text-muted);transition:all 0.15s}
+.sns-event-btn:hover{background:var(--paper);border-color:var(--accent);color:var(--text)}
+.sns-event-btn.active{background:var(--primary);color:#fff;font-weight:700;border-color:var(--primary)}
+.wordcloud-container{position:relative;height:380px;background:var(--paper);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.wordcloud-container canvas{width:100%!important;height:100%!important}
+.sentiment-bar{display:flex;height:32px;border-radius:4px;overflow:hidden;font-family:"Helvetica Neue",sans-serif;font-size:11px;font-weight:700}
+.sentiment-bar > div{display:flex;align-items:center;justify-content:center;color:#fff}
+.sentiment-pos{background:#3d6e4f}
+.sentiment-neu{background:#94a3b8}
+.sentiment-neg{background:#a01c1c}
+.top-post{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:14px 18px;margin-bottom:10px}
+.top-post-meta{display:flex;gap:12px;font-size:11px;color:var(--text-muted);margin-bottom:6px;font-family:"Helvetica Neue",sans-serif}
+.top-post-meta .platform-x{background:#000;color:#fff;padding:1px 8px;border-radius:3px;font-weight:700}
+.top-post-meta .platform-ig{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;padding:1px 8px;border-radius:3px;font-weight:700}
+.top-post-text{font-size:13px;color:var(--text);line-height:1.7;margin-bottom:6px}
+.top-post-stats{font-size:11px;color:var(--text-muted)}
+.top-post-stats span{margin-right:12px}
+.tag-pill{display:inline-block;background:var(--paper);border:1px solid var(--border);color:var(--primary);padding:3px 10px;border-radius:12px;font-size:11.5px;margin:2px;font-family:"Helvetica Neue",sans-serif}
+.tag-pill .count{color:var(--text-muted);margin-left:4px;font-weight:600}
+
+.cc-card{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#e2e8f0;border-radius:8px;padding:24px 28px;margin-bottom:24px;border:1px solid #334155}
+.cc-card-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cc-card-icon{width:36px;height:36px;background:#0ea5e9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;font-family:"Helvetica Neue",sans-serif}
+.cc-card-title{font-size:15px;font-weight:700;color:#fff;font-family:"Helvetica Neue",sans-serif;letter-spacing:0.5px}
+.cc-card-subtitle{font-size:12px;color:#94a3b8;margin-top:2px}
+.cc-card-body{font-size:13px;line-height:1.7;color:#cbd5e1;margin-bottom:14px}
+.cc-card-body strong{color:#fbbf24}
+.cc-cmd{background:#020617;border:1px solid #334155;border-radius:6px;padding:14px 18px;font-family:"SFMono-Regular","Consolas","Menlo",monospace;font-size:13px;color:#86efac;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.cc-cmd-text{flex:1;overflow-x:auto;white-space:nowrap}
+.cc-cmd-text .arg{color:#fbbf24}
+.cc-copy-btn{background:#334155;color:#e2e8f0;border:none;padding:6px 12px;border-radius:4px;font-size:11px;font-family:"Helvetica Neue",sans-serif;cursor:pointer;font-weight:600;letter-spacing:0.5px;flex-shrink:0}
+.cc-copy-btn:hover{background:#475569}
+.cc-copy-btn.copied{background:#16a34a}
+.cc-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:#94a3b8;font-family:"Helvetica Neue",sans-serif}
+.cc-flow-step{background:#0f172a;border:1px solid #334155;padding:4px 10px;border-radius:4px}
+.cc-flow-arrow{color:#475569}
+.sns-status-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+.sns-status-table th{background:var(--bg);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);font-weight:700;color:var(--text);font-size:11.5px;letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif}
+.sns-status-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.status-dot.fresh{background:#16a34a}
+.status-dot.dummy{background:#ca8a04}
+.status-dot.empty{background:#94a3b8}
+.status-label{font-size:11px;color:var(--text-muted);font-family:"Helvetica Neue",sans-serif;letter-spacing:0.3px}
+.cc-mini-cmd{display:inline-flex;align-items:center;gap:6px;background:#0f172a;color:#86efac;padding:3px 8px;border-radius:3px;font-family:"SFMono-Regular",monospace;font-size:11px;cursor:pointer;border:1px solid #334155}
+.cc-mini-cmd:hover{background:#1e293b}
+.cc-mini-cmd .copy-icon{color:#94a3b8;font-size:10px}
+.event-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;font-family:"Helvetica Neue",sans-serif;margin-left:8px;letter-spacing:0.3px}
+.event-badge.fresh{background:#dcfce7;color:#166534}
+.event-badge.dummy{background:#fef3c7;color:#854d0e}
+.sns-event-btn .event-status{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:6px;vertical-align:middle}
+.sns-event-btn .event-status.dummy{background:#ca8a04}
+.sns-event-btn .event-status.fresh{background:#16a34a}
+.sns-event-btn .event-status.empty{background:#94a3b8}
+.last-updated-pill{display:inline-block;background:var(--bg);padding:3px 10px;border-radius:10px;font-size:11px;color:var(--text-muted);margin-left:auto;font-family:"Helvetica Neue",sans-serif}
+.last-updated-pill .label{color:var(--text-muted);margin-right:4px}
+.last-updated-pill .value{color:var(--text);font-weight:600}
+
+.sns-summary-card{background:linear-gradient(135deg,#fdfaf4 0%,#f5efe2 100%);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:6px;padding:20px 24px;height:100%}
+.sns-mood-badge{display:inline-block;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;font-family:"Helvetica Neue",sans-serif;letter-spacing:0.5px;margin-bottom:12px}
+.mood-positive{background:#dcfce7;color:#166534}
+.mood-mixed{background:#fef3c7;color:#854d0e}
+.mood-negative{background:#fee2e2;color:#991b1b}
+.sns-summary-block{margin-bottom:14px;font-size:13px;line-height:1.75}
+.sns-summary-block:last-child{margin-bottom:0}
+.sns-summary-label{font-size:10.5px;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;font-family:"Helvetica Neue",sans-serif;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.sns-summary-label .ico{font-size:13px}
+.sns-summary-block ul{list-style:none;padding:0;margin:6px 0 0}
+.sns-summary-block ul li{padding:3px 0 3px 14px;position:relative;color:var(--text)}
+.sns-summary-block ul li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:700}
+.ideas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.idea-card{background:#fff;border:1px solid var(--border);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;transition:all 0.15s}
+.idea-card:hover{border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.idea-cat-tag{display:inline-block;padding:3px 10px;border-radius:3px;color:#fff;font-size:10.5px;font-weight:700;letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif;align-self:flex-start}
+.idea-cat-shukyaku{background:#a01c1c}
+.idea-cat-manzoku{background:#3b6a8f}
+.idea-cat-unei{background:#475569}
+.idea-cat-pr{background:#c9a96e;color:#3a2a0a}
+.idea-cat-shouhin{background:#3d6e4f}
+.idea-cat-data{background:#7c3aed}
+.idea-title{font-size:14px;font-weight:700;color:var(--text);font-family:"Hiragino Mincho ProN",serif;line-height:1.5}
+.idea-row{font-size:12px;color:var(--text);line-height:1.65;padding-left:12px;position:relative}
+.idea-row .label{display:inline-block;font-size:10.5px;font-weight:700;color:var(--secondary);letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif;margin-right:6px;text-transform:uppercase;position:absolute;left:-2px;color:var(--accent)}
+.idea-row .label-text{font-weight:700;color:var(--secondary);font-size:11px;display:inline-block;margin-right:6px}
+.idea-row + .idea-row{padding-top:6px;border-top:1px dashed var(--border);margin-top:4px}
+.idea-impact-pill{display:inline-block;background:var(--paper);padding:2px 10px;border-radius:10px;font-size:11px;color:var(--accent);font-weight:600;margin-top:4px}
+.ideas-note{font-size:11px;color:var(--text-muted);margin-top:14px;padding:10px 14px;background:var(--paper);border-radius:4px;line-height:1.7}
+
+.ideas-meta-bar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--text-muted);margin-bottom:14px;padding:10px 14px;background:var(--paper);border-radius:6px}
+.ideas-meta-bar .updated{font-family:"Helvetica Neue",sans-serif}
+.ideas-meta-bar .sources{display:flex;gap:6px}
+.source-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;font-family:"Helvetica Neue",sans-serif;color:#fff;letter-spacing:0.5px}
+.source-badge.sns{background:#1e3a5f}
+.source-badge.agoop{background:#3d6e4f}
+.source-badge.camera{background:#a01c1c}
+.source-badge.lodging{background:#c9a96e;color:#3a2a0a}
+.source-badge.analysis{background:#7c3aed}
+.evidence-list{margin-top:6px;padding-left:0;list-style:none}
+.evidence-list li{padding:3px 0;font-size:11.5px;color:var(--text);display:flex;gap:6px;align-items:flex-start}
+.evidence-list .src-tag{font-size:9px;padding:1px 5px;border-radius:2px;color:#fff;font-weight:700;font-family:"Helvetica Neue",sans-serif;letter-spacing:0.3px;flex-shrink:0;margin-top:2px}
+.priority-badge{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:2px;letter-spacing:0.5px;font-family:"Helvetica Neue",sans-serif;margin-left:auto}
+.priority-high{background:#fee2e2;color:#991b1b}
+.priority-medium{background:#fef3c7;color:#854d0e}
+.priority-low{background:#f1f5f9;color:#475569}
+</style>
+</head>
+<body>
+
+<div class="draft-banner">DRAFT — 内部レビュー版・v0.1 ／ 2025年度（R7）データは順次投入予定</div>
+
+<div class="site-header">
+<div class="container site-header-inner">
+<div class="brand">
+<div class="brand-mark">米</div>
+<div class="brand-text">
+<div class="brand-name">プラットヨネザワ／米沢観光推進機構</div>
+<div class="brand-sub">YONEZAWA TOURISM PROMOTION ORG.</div>
+</div>
+</div>
+<div class="year-nav" id="yearNav">
+<button class="year-btn disabled" data-year="r6" disabled title="データ準備中">R6 / 2024</button>
+<button class="year-btn active" data-year="r7">R7 / 2025</button>
+<button class="year-btn" data-year="r8">R8 / 2026</button>
+</div>
+</div>
+</div>
+
+<div class="hero">
+<div class="container">
+<div class="hero-eyebrow">YONEZAWA TOURISM DATA · R7 / 2025年度</div>
+<h1>米沢観光データダッシュボード</h1>
+<p class="hero-lead">主要イベント（※）の年間の人流分析、車両の分析、宿泊の動向を可視化したものです。</p>
+<div class="hero-events">
+<div class="hero-events-label">※ 主要イベント：</div>
+<ul>
+<li><strong>米沢上杉まつり</strong>（春・4/29〜5/3）</li>
+<li><strong>米沢納涼水上花火大会</strong>（夏・8/8）</li>
+<li><strong>360°よねざわオープンファクトリー</strong>（9/11〜13）</li>
+<li><strong>なせばなる秋まつり</strong>（9/27〜28）</li>
+<li><strong>よねざわ戦国花火大会</strong>（10/11）</li>
+<li><strong>上杉雪灯篭まつり</strong>（冬・2/14〜15）</li>
+</ul>
+</div>
+<div class="hero-meta">
+<span>📅 分析期間：令和7年度（2025年4月〜2026年3月） ／ 一部 令和8年度（2026年4-5月）</span>
+<span>🏛️ 米沢観光推進機構</span>
+<span>📊 人流データ × カメラ車両カウント × 宿泊データ（じゃらん）</span>
+</div>
+</div>
+</div>
+
+<div class="tabs-nav">
+<div class="container">
+<div class="tabs-hint">↓ タブをクリックして各分析ページへ切替（右上の年度ボタンで R7/R8 を切替）</div>
+<div class="tabs" id="tabs">
+<button class="tab active" data-target="all" data-year="r7">📊 R7 全体サマリー</button>
+<button class="tab" data-target="shiki" data-year="r7">🌸 四季のまつり</button>
+<button class="tab" data-target="sengoku" data-year="r7">🎆 戦国花火大会</button>
+<button class="tab" data-target="factory" data-year="r7">🏭 360°オープンファクトリー</button>
+<button class="tab" data-target="camera" data-year="r7">🎥 カメラ車両カウント</button>
+<button class="tab" data-target="locations" data-year="r7">📍 取得地点・エリア</button>
+<button class="tab" data-target="gw" data-year="r8" style="display:none">🌸 置賜GW人流</button>
+<button class="tab" data-target="lodging" data-year="r8" style="display:none">🏨 宿泊データ（じゃらん）</button>
+<button class="tab" data-target="data" data-year="r7,r8">📋 データソース</button>
+</div>
+</div>
+</div>
+
+<main class="container">
+
+<!-- 全体サマリー -->
+<div id="panel-all" class="panel">
+<div class="section-header">
+<div class="section-num">01 — Overview</div>
+<div class="section-h2">全体サマリー</div>
+<div class="section-lead">2025年度（R7）に米沢で開催された主要イベントの来場者・宿泊・車両通過の総括。実データ投入後に各KPIは自動更新されます。</div>
+</div>
+
+<div class="dummy-banner">
+<div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　本タブのKPI・グラフはレイアウト確認用の仮値です。実データ投入後に確定値へ書き換えます。</div>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">累計訪問者数 / 人流データ</div><div class="kpi-value">325,000<span class="kpi-unit">人</span></div><div class="kpi-change up">▲ 前年比 +12.4%</div></div>
+<div class="kpi-card"><div class="kpi-label">延べ宿泊者数 / Lodging</div><div class="kpi-value">28,400<span class="kpi-unit">人泊</span></div><div class="kpi-change up">▲ 前年比 +8.1%</div></div>
+<div class="kpi-card"><div class="kpi-label">訪問車両 / Camera</div><div class="kpi-value">87,200<span class="kpi-unit">台</span></div><div class="kpi-change up">▲ 前年比 +5.7%</div></div>
+<div class="kpi-card"><div class="kpi-label">平均滞在時間 / Dwell</div><div class="kpi-value">2.8<span class="kpi-unit">時間</span></div><div class="kpi-change down">▼ 前年比 -0.2h</div></div>
+</div>
+<div class="section-card">
+<div class="section-title">訪問者数の比較 — 祭り間・前年比</div>
+<div class="section-desc">人流データから集計した会場周辺の訪問者数を、祭り別・前年同期と比較</div>
+<div class="chart-container tall"><canvas id="chartCompare"></canvas></div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">祭り前後の宿泊稼働率の動き</div><div class="section-desc">各祭り開催日±3日間の宿泊施設稼働率の推移</div><div class="chart-container"><canvas id="chartLodging"></canvas></div></div>
+<div class="section-card"><div class="section-title">訪問者の居住地分布</div><div class="section-desc">流入元の都道府県別シェア（％）。都道府県名と数値を併記</div><div class="chart-container"><canvas id="chartOrigin"></canvas></div></div>
+</div>
+</div>
+
+<!-- 置賜GW人流（実データ） -->
+<div id="panel-gw" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">02 — Real Data · GW</div>
+<div class="section-h2">置賜GW人流レポート 2026</div>
+<div class="section-lead">本タブは置賜GW人流レポート2026の実数値を使用したモックアップ基準ページ。出典：agoop（株式会社アグープ）／GW期間（4/28〜5/5、各8日間）／5/2〜5/5は速報値</div>
+</div>
+
+<div class="exec-summary">
+<div class="exec-summary-eyebrow">Executive Summary · 要約</div>
+<h3 class="exec-summary-headline">山形県内 <strong>▲5.1%</strong>、米沢市内 <strong>▲14%</strong>。ただし「県外流出」という単純構図ではなく、<strong>米沢市内の弱含み</strong>と<strong>周辺の好調</strong>が同時進行している。</h3>
+<div class="exec-summary-grid">
+<div>
+<div class="exec-summary-label">📊 主要発見（What）</div>
+<ul>
+<li>米沢市内 ▲14% が県全体を押し下げ：上杉神社▲20%、白布温泉▲30%、川中島合戦会場▲50%、米沢駅▲14%、小野川温泉▲11%</li>
+<li>置賜内（米沢市外） <strong>+23%</strong> が大健闘：熊野大社（南陽）<strong>+85%</strong> が圧倒的牽引、白川湖▲13%</li>
+<li>山形県内（置賜外） +5% で安定：天童温泉+6%、ダイワロイネットホテル山形+9%、上山▲12%</li>
+<li>参考：道の駅ふくしま▲2%（前年並み）。県外への流出という単純構図ではない</li>
+</ul>
+</div>
+<div>
+<div class="exec-summary-label">💡 示唆・申し送り（So What）</div>
+<ul>
+<li>川中島合戦会場の▲50% は2025年5/3のイベントスパイク不在による集計差で、実態的な集客力低下ではない。<strong>5/3の上杉まつり実施有無の影響を可視化する分析が要</strong></li>
+<li>白布温泉▲30% は冷涼な高地で天候影響を受けやすい立地。一方、ダイワロイネットホテル山形（山形市）+9%との対比は<strong>都市型宿泊の堅調</strong>を示す</li>
+<li>熊野大社+85% は「米沢→南陽」の周遊形成のポテンシャル。<strong>米沢発の周遊商品設計</strong>に活かせる</li>
+<li>時間帯別では米沢駅は休日12時ピーク・分散来訪、道の駅米沢はランチ集中型。<strong>立地特性に応じたコンテンツ設計</strong>が有効</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">米沢市内 GW合計</div><div class="kpi-value">177,493<span class="kpi-unit">人</span></div><div class="kpi-change down">▼ 前年比 -14.3%</div></div>
+<div class="kpi-card"><div class="kpi-label">置賜内（市外）合計</div><div class="kpi-value">37,602<span class="kpi-unit">人</span></div><div class="kpi-change up">▲ 前年比 +23.3%</div></div>
+<div class="kpi-card"><div class="kpi-label">山形県内（置賜外）</div><div class="kpi-value">107,924<span class="kpi-unit">人</span></div><div class="kpi-change up">▲ 前年比 +5.0%</div></div>
+<div class="kpi-card"><div class="kpi-label">山形県内 計</div><div class="kpi-value">323,019<span class="kpi-unit">人</span></div><div class="kpi-change down">▼ 前年比 -5.1%</div></div>
+</div>
+<div class="highlights">
+<h3>主要ハイライト</h3>
+<ul>
+<li><span class="hl-tag zentai">全体</span>山形県内合計は前年比 ▲5.1% で着地。米沢市内の落ち込みが県全体を押し下げ</li>
+<li><span class="hl-tag shinai">米沢市内</span>カテゴリ計 ▲14%。上杉神社▲20%、白布温泉▲30%、米沢駅▲14%、川中島合戦会場▲50%、小野川温泉▲11%。道の駅米沢は▲5%で踏みとどまる</li>
+<li><span class="hl-tag shinai">米沢市内</span>白布温泉の▲30%が最大の減少率。冷涼な高地で天候影響を受けやすい立地と推定</li>
+<li><span class="hl-tag shinai">米沢市内</span>川中島合戦会場▲50%は2025年5/3(土)1,939人のイベントスパイクが2026年無いため。集客力低下というより開催状況差</li>
+<li><span class="hl-tag okitama">置賜内</span>熊野大社（南陽）+85%が圧倒的牽引、白川湖の水没林（飯豊）は▲13%</li>
+<li><span class="hl-tag kennai">山形県内</span>+5% で安定。天童温泉+6%、ダイワロイネットホテル山形+9%、上山▲12%</li>
+<li><span class="hl-tag kengai">参考県外</span>道の駅ふくしま▲2%で前年並み。県外への流出という単純構図ではなさそう</li>
+<li><span class="hl-tag shukuhaku">宿泊系</span>ダイワロイネットホテル山形が+9%。山形市の宿泊需要は堅調。米沢市内の温泉は弱含みで対照的</li>
+<li><span class="hl-tag jikan">時間帯</span>米沢駅は休日12時にピーク8.3%、朝7時〜夕方17時に分散来訪</li>
+<li><span class="hl-tag jikan">時間帯</span>道の駅米沢は11〜14時のランチ集中型、休日12時ピーク</li>
+</ul>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">カテゴリ別 期間合計（2025 vs 2026）</div><div class="section-desc">GW8日間合計の推計訪問者数</div><div class="chart-container"><canvas id="chartGwCategory"></canvas></div></div>
+<div class="section-card"><div class="section-title">スポット別 増減ランキング</div><div class="section-desc">前年差（2026-2025）の絶対値順</div><div class="chart-container"><canvas id="chartGwDelta"></canvas></div></div>
+</div>
+<div class="section-card">
+<div class="section-title">スポット別 期間合計（前年比較）</div>
+<div class="section-desc">出典：agoop ／ GW期間（4/28〜5/5、各8日間）</div>
+<table class="comp-table">
+<thead><tr><th>カテゴリ</th><th>スポット</th><th class="num">2025年</th><th class="num">2026年</th><th class="num">前年差</th><th class="num">前年比</th><th>所在地</th><th>備考</th></tr></thead>
+<tbody>
+<tr><td rowspan="6" style="vertical-align:top;background:#fdf2f8;font-weight:700;color:#8b1d3f">米沢市内</td><td>上杉神社</td><td class="num">78,634</td><td class="num">62,801</td><td class="num delta-down">-15,833</td><td class="num delta-down">-20.1%</td><td>米沢市</td><td></td></tr>
+<tr><td>米沢駅</td><td class="num">44,710</td><td class="num">38,557</td><td class="num delta-down">-6,153</td><td class="num delta-down">-13.8%</td><td>米沢市</td><td></td></tr>
+<tr><td>道の駅米沢</td><td class="num">60,414</td><td class="num">57,643</td><td class="num delta-down">-2,771</td><td class="num delta-down">-4.6%</td><td>米沢市</td><td></td></tr>
+<tr><td>小野川温泉</td><td class="num">15,236</td><td class="num">13,609</td><td class="num delta-down">-1,627</td><td class="num delta-down">-10.7%</td><td>米沢市</td><td></td></tr>
+<tr><td>白布温泉</td><td class="num">4,114</td><td class="num">2,898</td><td class="num delta-down">-1,216</td><td class="num delta-down">-29.6%</td><td>米沢市</td><td></td></tr>
+<tr><td>川中島合戦会場</td><td class="num">3,937</td><td class="num">1,985</td><td class="num delta-down">-1,952</td><td class="num delta-down">-49.6%</td><td>米沢市</td><td>2025年5/3にイベントスパイク有</td></tr>
+<tr class="cat-subtotal"><td colspan="2">米沢市内 小計</td><td class="num">207,045</td><td class="num">177,493</td><td class="num delta-down">-29,552</td><td class="num delta-down">-14.3%</td><td></td><td></td></tr>
+<tr><td rowspan="2" style="vertical-align:top;background:#f0fdf4;font-weight:700;color:#3d6e4f">置賜内<br>(米沢市外)</td><td>熊野大社（南陽）</td><td class="num">11,335</td><td class="num">20,983</td><td class="num delta-up">+9,648</td><td class="num delta-up">+85.1%</td><td>南陽市</td><td></td></tr>
+<tr><td>白川湖の水没林（飯豊）</td><td class="num">19,155</td><td class="num">16,619</td><td class="num delta-down">-2,536</td><td class="num delta-down">-13.2%</td><td>飯豊町</td><td></td></tr>
+<tr class="cat-subtotal"><td colspan="2">置賜内 小計</td><td class="num">30,490</td><td class="num">37,602</td><td class="num delta-up">+7,112</td><td class="num delta-up">+23.3%</td><td></td><td></td></tr>
+<tr><td rowspan="3" style="vertical-align:top;background:#fdf6e3;font-weight:700;color:#6a4f1a">山形県内<br>(置賜外)</td><td>ダイワロイネットホテル山形</td><td class="num">6,268</td><td class="num">6,805</td><td class="num delta-up">+537</td><td class="num delta-up">+8.6%</td><td>山形市</td><td>※山形市の宿泊指標として</td></tr>
+<tr><td>天童温泉</td><td class="num">89,124</td><td class="num">94,586</td><td class="num delta-up">+5,462</td><td class="num delta-up">+6.1%</td><td>天童市</td><td></td></tr>
+<tr><td>上山</td><td class="num">7,408</td><td class="num">6,533</td><td class="num delta-down">-875</td><td class="num delta-down">-11.8%</td><td>上山市</td><td></td></tr>
+<tr class="cat-subtotal"><td colspan="2">山形県内（置賜外）小計</td><td class="num">102,800</td><td class="num">107,924</td><td class="num delta-up">+5,124</td><td class="num delta-up">+5.0%</td><td></td><td></td></tr>
+<tr><td style="vertical-align:top;background:#f1f5f9;font-weight:700;color:#475569">参考<br>(県外)</td><td>道の駅ふくしま</td><td class="num">63,009</td><td class="num">61,995</td><td class="num delta-down">-1,014</td><td class="num delta-down">-1.6%</td><td>福島県(国見町)</td><td>県外参考指標</td></tr>
+<tr class="cat-subtotal"><td colspan="2">参考（県外）小計</td><td class="num">63,009</td><td class="num">61,995</td><td class="num delta-down">-1,014</td><td class="num delta-down">-1.6%</td><td></td><td></td></tr>
+<tr class="grand-total"><td colspan="2">山形県内 計（県外参考除く）</td><td class="num">340,335</td><td class="num">323,019</td><td class="num">-17,316</td><td class="num">-5.1%</td><td></td><td></td></tr>
+</tbody></table></div>
+<div class="section-card"><div class="section-title">日別 × スポット別 訪問者数（2026年）</div><div class="section-desc">2026/4/28〜5/5 ／ ※5/2〜5/5は速報値</div><div class="chart-container tall"><canvas id="chartGwDaily"></canvas></div></div>
+<div class="section-card"><div class="section-title">カテゴリ別 曜日別合計（2025 vs 2026）</div><div class="section-desc">2025・2026は曜日配置が異なる（4/28が月→火）。曜日ベースで対応する値を比較</div><div class="chart-container tall"><canvas id="chartGwDow"></canvas></div></div>
+<div class="section-card"><div class="section-title">時間帯別 来訪者割合（2026/5/2〜5/5 速報・休日）</div><div class="section-desc">米沢駅・道の駅米沢・白布温泉・白川湖の水没林の時間帯構成比</div><div class="chart-container tall"><canvas id="chartGwHourly"></canvas></div></div>
+</div>
+
+<!-- 四季のまつり -->
+<div id="panel-shiki" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">03 — Festivals · Four Seasons</div>
+<div class="section-h2">四季のまつり</div>
+<div class="section-lead">春＝米沢上杉まつり（4/29-5/3）／夏＝米沢納涼水上花火大会（8/8）／秋＝なせばなる秋まつり（9/27-28・松が岬公園）／冬＝上杉雪灯篭まつり（2/14-15予定）</div>
+</div>
+
+<div class="dummy-banner">
+<div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　本タブのKPI・グラフはレイアウト確認用の仮値です。実データ投入後に確定値へ書き換えます。</div>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">4イベント合計（仮）</div><div class="kpi-value">218,000<span class="kpi-unit">人</span></div><div class="kpi-change">なせばなる秋まつり追加</div></div>
+<div class="kpi-card"><div class="kpi-label">最大集客</div><div class="kpi-value" style="font-size:18px">上杉まつり</div><div class="kpi-change">5/3 川中島合戦：92,000人</div></div>
+<div class="kpi-card"><div class="kpi-label">延べ宿泊人数</div><div class="kpi-value">15,200<span class="kpi-unit">人泊</span></div><div class="kpi-change">仮値</div></div>
+<div class="kpi-card"><div class="kpi-label">平均滞在時間</div><div class="kpi-value">3.2<span class="kpi-unit">時間</span></div><div class="kpi-change">仮値</div></div>
+</div>
+<div class="section-card"><div class="section-title">3イベント別 訪問者数推移</div><div class="section-desc">春・夏・冬の各祭り当日の時間帯別訪問者数（人流）</div><div class="chart-container tall"><canvas id="chartShikiByEvent"></canvas></div></div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">3拠点カメラ × イベント別 車両数</div><div class="section-desc">道の駅米沢／道の駅田沢／上杉城史苑カメラの祭り当日車両カウント比較</div><div class="chart-container"><canvas id="chartShikiTraffic"></canvas></div></div>
+<div class="section-card"><div class="section-title">時間帯別 滞在人口</div><div class="section-desc">5/3（上杉行列・川中島合戦日）の会場メッシュ滞在人口</div><div class="chart-container"><canvas id="chartShikiDwell"></canvas></div></div>
+</div>
+
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">SNS Response · 四季のまつり</div>
+<div class="section-h2">SNS反響</div>
+<div class="section-lead">X（旧Twitter）の対象ハッシュタグ投稿を集計（最大上位30件）。詳細は「データソース」タブでClaude Codeコマンド付き一覧</div>
+</div>
+
+<div class="sns-event-nav">
+<button class="sns-event-btn shiki-sns-btn active" data-event="uesugi">🌸 上杉まつり<span class="event-status dummy"></span></button>
+<button class="sns-event-btn shiki-sns-btn" data-event="suijou">🎆 水上花火<span class="event-status dummy"></span></button>
+<button class="sns-event-btn shiki-sns-btn" data-event="naseba">🍂 なせばなる秋まつり<span class="event-status dummy"></span></button>
+<button class="sns-event-btn shiki-sns-btn" data-event="yukidouro">❄️ 雪灯篭まつり<span class="event-status dummy"></span></button>
+</div>
+
+
+<div class="dummy-banner" style="margin-top:16px"><div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　Claude Codeで <code style="background:#fff;padding:2px 6px;border-radius:3px">/sns-update</code> を実行すると実データに置き換わります</div></div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">投稿数</div><div class="kpi-value" id="shiki-sns-posts">—<span class="kpi-unit">件</span></div><div class="kpi-change" id="shiki-sns-period">—</div></div>
+<div class="kpi-card"><div class="kpi-label">推定インプレッション</div><div class="kpi-value" id="shiki-sns-imp">—<span class="kpi-unit">回</span></div><div class="kpi-change">投稿者フォロワー × 0.3</div></div>
+<div class="kpi-card"><div class="kpi-label">ポジティブ率</div><div class="kpi-value" id="shiki-sns-pos">—<span class="kpi-unit">%</span></div><div class="kpi-change" id="shiki-sns-sentiment-meta">—</div></div>
+<div class="kpi-card"><div class="kpi-label">影響力TOP投稿</div><div class="kpi-value" id="shiki-sns-top-eng" style="font-size:18px">—</div><div class="kpi-change" id="shiki-sns-top-platform">—</div></div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">ワードクラウド</div><div class="section-desc">投稿本文を形態素解析し、出現頻度の高いキーワードを可視化</div><div class="wordcloud-container"><canvas id="shikiSnsWordcloud"></canvas></div></div>
+<div class="sns-summary-card" id="shiki-sns-summary">—</div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">関連ハッシュタグ TOP10</div><div class="section-desc">対象ハッシュタグと共起したハッシュタグの出現回数</div><div id="shiki-sns-hashtags" style="line-height:2.2"></div></div>
+<div class="section-card">
+<div class="section-title">SNSデータの読み解きガイド</div>
+<div class="section-desc">この要約はSNS投稿の定性分析。実データ更新時にClaudeが自動で再生成します</div>
+<ul style="font-size:12.5px;line-height:1.85;padding-left:18px;color:var(--text)">
+<li><strong>ムードバッジ</strong>：投稿全体の感情傾向（ポジ/ネガ/混在）</li>
+<li><strong>ポジティブ反応</strong>：来訪者が好意的に言及したポイント</li>
+<li><strong>ネガティブ反応</strong>：改善の余地がある運営・体験面</li>
+<li><strong>注目された動き</strong>：拡散の起点となった投稿、トレンド傾向</li>
+<li>右側「改善点・提案」セクションで、これらを基にした具体的アクション案を整理</li>
+</ul>
+</div>
+</div>
+<div class="grid-2">
+<div class="section-card">
+<div class="section-title">感情分析（ポジ／中立／ネガ）</div>
+<div class="section-desc">日本語感情極性辞書ベースの簡易判定</div>
+<div class="sentiment-bar" id="shiki-sns-sentiment-bar" style="margin-top:16px"></div>
+<div style="margin-top:14px;font-size:12.5px;color:var(--text-muted);line-height:1.8" id="shiki-sns-sentiment-text"></div>
+</div>
+<div class="section-card"><div class="section-title">言及量タイムライン</div><div class="section-desc">開催日±2週間の日別投稿数</div><div class="chart-container"><canvas id="shikiSnsTimeline"></canvas></div></div>
+</div>
+<div class="section-card">
+<div class="section-title">影響力TOP投稿（いいね・リポスト数）</div>
+<div class="section-desc">拡散の起点となった投稿。投稿者プロフィールへのリンクは省略</div>
+<div id="shiki-sns-top-posts"></div>
+<div style="margin-top:18px;padding:12px 16px;background:#0f172a;color:#e2e8f0;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:12px">
+<span style="color:#94a3b8">このイベントを更新：</span>
+<span class="cc-mini-cmd" id="shiki-sns-cmd" data-copy="/sns-update —" style="cursor:pointer">— <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">Improvement Ideas · 改善案（複数データ統合）</div>
+<div class="section-h2">改善点・提案アイディア</div>
+<div class="section-lead" id="shiki-ideas-summary">データを統合分析した改善余地のメモ。会議で議論する叩き台</div>
+</div>
+<div class="ideas-meta-bar" id="shiki-ideas-meta"></div>
+<div class="ideas-grid" id="shiki-ideas-grid"></div>
+<div class="ideas-note">
+カテゴリ凡例：
+<span class="idea-cat-tag idea-cat-shukyaku" style="font-size:9.5px;padding:2px 8px">集客</span>
+<span class="idea-cat-tag idea-cat-manzoku" style="font-size:9.5px;padding:2px 8px">満足度</span>
+<span class="idea-cat-tag idea-cat-unei" style="font-size:9.5px;padding:2px 8px">運営</span>
+<span class="idea-cat-tag idea-cat-pr" style="font-size:9.5px;padding:2px 8px">PR</span>
+<span class="idea-cat-tag idea-cat-shouhin" style="font-size:9.5px;padding:2px 8px">商品開発</span>
+<span class="idea-cat-tag idea-cat-data" style="font-size:9.5px;padding:2px 8px">データ整備</span>
+<br>
+<span style="display:inline-block;margin-top:8px;color:var(--accent);font-weight:600">▶ 更新コマンド：</span>
+<span class="cc-mini-cmd" data-copy="/ideas-generate shiki-aggregate" style="cursor:pointer">/ideas-generate shiki-aggregate <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+
+<!-- 戦国花火 -->
+<div id="panel-sengoku" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">04 — Festivals · Sengoku Fireworks</div>
+<div class="section-h2">よねざわ戦国花火大会</div>
+<div class="section-lead">2025年10月11日（土）／米沢市営野球場 ／ 8,000発＋ドローンショー200機</div>
+</div>
+
+<div class="dummy-banner">
+<div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　本タブのKPI・グラフはレイアウト確認用の仮値です。実データ投入後に確定値へ書き換えます。</div>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">累計訪問者数</div><div class="kpi-value">82,000<span class="kpi-unit">人</span></div><div class="kpi-change up">▲ 前年比 +18.2%</div></div>
+<div class="kpi-card"><div class="kpi-label">県外比率</div><div class="kpi-value">42<span class="kpi-unit">%</span></div><div class="kpi-change up">▲ 前年比 +7pt</div></div>
+<div class="kpi-card"><div class="kpi-label">市内宿泊者数</div><div class="kpi-value">3,850<span class="kpi-unit">人泊</span></div><div class="kpi-change up">▲ 前年比 +24.1%</div></div>
+<div class="kpi-card"><div class="kpi-label">流入車両ピーク</div><div class="kpi-value">15:00</div><div class="kpi-change">時間帯ピーク</div></div>
+</div>
+<div class="section-card"><div class="section-title">10/11当日 時間帯別 来場者・車両流入</div><div class="section-desc">市営野球場周辺の人流データ滞在人口と、3拠点カメラの流入車両を時系列で重ね</div><div class="chart-container tall"><canvas id="chartSengokuTimeline"></canvas></div></div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">3拠点カメラ 時間帯別車両数</div><div class="section-desc">道の駅米沢／道の駅田沢／上杉城史苑カメラの10/11車両カウント推移</div><div class="chart-container"><canvas id="chartSengokuRoute"></canvas></div></div>
+<div class="section-card"><div class="section-title">市内宿泊客 居住地TOP10</div><div class="section-desc">10/10〜10/12 市内宿泊者の居住地別構成（OTAデータ）</div><div class="chart-container"><canvas id="chartSengokuOrigin"></canvas></div></div>
+</div>
+
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">SNS Response · よねざわ戦国花火大会</div>
+<div class="section-h2">SNS反響</div>
+<div class="section-lead">X（旧Twitter）の対象ハッシュタグ投稿を集計（最大上位30件）。詳細は「データソース」タブでClaude Codeコマンド付き一覧</div>
+</div>
+
+
+<div class="dummy-banner" style="margin-top:16px"><div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　Claude Codeで <code style="background:#fff;padding:2px 6px;border-radius:3px">/sns-update</code> を実行すると実データに置き換わります</div></div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">投稿数</div><div class="kpi-value" id="sengoku-sns-posts">—<span class="kpi-unit">件</span></div><div class="kpi-change" id="sengoku-sns-period">—</div></div>
+<div class="kpi-card"><div class="kpi-label">推定インプレッション</div><div class="kpi-value" id="sengoku-sns-imp">—<span class="kpi-unit">回</span></div><div class="kpi-change">投稿者フォロワー × 0.3</div></div>
+<div class="kpi-card"><div class="kpi-label">ポジティブ率</div><div class="kpi-value" id="sengoku-sns-pos">—<span class="kpi-unit">%</span></div><div class="kpi-change" id="sengoku-sns-sentiment-meta">—</div></div>
+<div class="kpi-card"><div class="kpi-label">影響力TOP投稿</div><div class="kpi-value" id="sengoku-sns-top-eng" style="font-size:18px">—</div><div class="kpi-change" id="sengoku-sns-top-platform">—</div></div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">ワードクラウド</div><div class="section-desc">投稿本文を形態素解析し、出現頻度の高いキーワードを可視化</div><div class="wordcloud-container"><canvas id="sengokuSnsWordcloud"></canvas></div></div>
+<div class="sns-summary-card" id="sengoku-sns-summary">—</div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">関連ハッシュタグ TOP10</div><div class="section-desc">対象ハッシュタグと共起したハッシュタグの出現回数</div><div id="sengoku-sns-hashtags" style="line-height:2.2"></div></div>
+<div class="section-card">
+<div class="section-title">SNSデータの読み解きガイド</div>
+<div class="section-desc">この要約はSNS投稿の定性分析。実データ更新時にClaudeが自動で再生成します</div>
+<ul style="font-size:12.5px;line-height:1.85;padding-left:18px;color:var(--text)">
+<li><strong>ムードバッジ</strong>：投稿全体の感情傾向（ポジ/ネガ/混在）</li>
+<li><strong>ポジティブ反応</strong>：来訪者が好意的に言及したポイント</li>
+<li><strong>ネガティブ反応</strong>：改善の余地がある運営・体験面</li>
+<li><strong>注目された動き</strong>：拡散の起点となった投稿、トレンド傾向</li>
+<li>右側「改善点・提案」セクションで、これらを基にした具体的アクション案を整理</li>
+</ul>
+</div>
+</div>
+<div class="grid-2">
+<div class="section-card">
+<div class="section-title">感情分析（ポジ／中立／ネガ）</div>
+<div class="section-desc">日本語感情極性辞書ベースの簡易判定</div>
+<div class="sentiment-bar" id="sengoku-sns-sentiment-bar" style="margin-top:16px"></div>
+<div style="margin-top:14px;font-size:12.5px;color:var(--text-muted);line-height:1.8" id="sengoku-sns-sentiment-text"></div>
+</div>
+<div class="section-card"><div class="section-title">言及量タイムライン</div><div class="section-desc">開催日±2週間の日別投稿数</div><div class="chart-container"><canvas id="sengokuSnsTimeline"></canvas></div></div>
+</div>
+<div class="section-card">
+<div class="section-title">影響力TOP投稿（いいね・リポスト数）</div>
+<div class="section-desc">拡散の起点となった投稿。投稿者プロフィールへのリンクは省略</div>
+<div id="sengoku-sns-top-posts"></div>
+<div style="margin-top:18px;padding:12px 16px;background:#0f172a;color:#e2e8f0;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:12px">
+<span style="color:#94a3b8">このイベントを更新：</span>
+<span class="cc-mini-cmd" id="sengoku-sns-cmd" data-copy="/sns-update —" style="cursor:pointer">— <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">Improvement Ideas · 改善案（複数データ統合）</div>
+<div class="section-h2">改善点・提案アイディア</div>
+<div class="section-lead" id="sengoku-ideas-summary">データを統合分析した改善余地のメモ。会議で議論する叩き台</div>
+</div>
+<div class="ideas-meta-bar" id="sengoku-ideas-meta"></div>
+<div class="ideas-grid" id="sengoku-ideas-grid"></div>
+<div class="ideas-note">
+カテゴリ凡例：
+<span class="idea-cat-tag idea-cat-shukyaku" style="font-size:9.5px;padding:2px 8px">集客</span>
+<span class="idea-cat-tag idea-cat-manzoku" style="font-size:9.5px;padding:2px 8px">満足度</span>
+<span class="idea-cat-tag idea-cat-unei" style="font-size:9.5px;padding:2px 8px">運営</span>
+<span class="idea-cat-tag idea-cat-pr" style="font-size:9.5px;padding:2px 8px">PR</span>
+<span class="idea-cat-tag idea-cat-shouhin" style="font-size:9.5px;padding:2px 8px">商品開発</span>
+<span class="idea-cat-tag idea-cat-data" style="font-size:9.5px;padding:2px 8px">データ整備</span>
+<br>
+<span style="display:inline-block;margin-top:8px;color:var(--accent);font-weight:600">▶ 更新コマンド：</span>
+<span class="cc-mini-cmd" data-copy="/ideas-generate sengoku-hanabi-2025" style="cursor:pointer">/ideas-generate sengoku-hanabi-2025 <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+
+<!-- オープンファクトリー -->
+<div id="panel-factory" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">05 — Festivals · 360° Open Factory</div>
+<div class="section-h2">360°よねざわオープンファクトリー</div>
+<div class="section-lead">2025年9月11日(木)〜13日(土) ／ 13エリア（参加企業・大学）／ 出典：agoop（株式会社アグープ）人流データ</div>
+</div>
+<div class="partial-banner">
+<div class="partial-banner-icon">ℹ️</div>
+<div><strong>PARTIAL DATA — 一部データ表示中</strong>　山形大学工学部は通常授業日の人流（学生・教職員・関係者）が多く混入するため、本タブでは<strong>除外</strong>した12エリア（参加企業のみ）の集計を表示しています。</div>
+</div>
+
+<div class="exec-summary">
+<div class="exec-summary-eyebrow">Executive Summary · 要約</div>
+<h3 class="exec-summary-headline">12エリアで延べ来訪 <strong>4,229人</strong>、<strong>米沢市内56%</strong>・置賜内合算<strong>72%</strong>。県外比率14%（うち福島・南東北が大半）。県外送客より「<strong>近隣集客の質を上げる</strong>」段階。</h3>
+<div class="exec-summary-grid">
+<div>
+<div class="exec-summary-label">📊 主要発見（What）</div>
+<ul>
+<li>エリア別TOP：花角味噌醸造 763人（18.0%）、平山孫兵衛538、Nitorito 535、紅花染新田508、米沢織物おりじん473、粟野商事JUYOKAN 374</li>
+<li>居住地：米沢市民が中心（2,360人・55.8%）、福島市155、南陽市143、只見町138、小国町134、高畠町86</li>
+<li>県外比率：<strong>約14%</strong>（福島県345＋栃木県33＋茨城県31＋埼玉県25＋東京都12＋他）— 知名度の伸びしろあり</li>
+<li>平日と休日で属性が大きく異なる：平日30-60代社会人、休日10代以下＋60代家族</li>
+</ul>
+</div>
+<div>
+<div class="exec-summary-label">💡 示唆・申し送り（So What）</div>
+<ul>
+<li>山形大学工学部は通常授業日の人流（学生・教職員）が含まれるため除外。本数値は<strong>OF会場（参加企業）のみ</strong>の集計</li>
+<li>県外14%は伸びしろ。福島県（345人）は地理的近さの効果、北関東（栃木33・茨城31）の存在は地味だが重要。<strong>東京都12人</strong>は首都圏PRがこれから</li>
+<li>休日（9/13土）が最大集客（2,171人・51.3%）。<strong>土曜の家族層集客が中核</strong>、平日のビジネス・関係者導線とは明確に異なる</li>
+<li>滞在時間：休日は2-5時間が最多（観光来訪）、平日5-12時間は関係者・学生想定</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="note" style="background:#fef9c3;border-left-color:#ca8a04;color:#713f12">
+<strong>📊 人流計測：</strong>本タブは12拠点（OF参加企業）の人流計測に基づく集計値。山形大学工学部（通常人流多）は除外。3日間の延べ来訪数（同一来訪者が複数エリア訪問時はそれぞれカウント）。
+</div>
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">3日間 累計訪問者数</div><div class="kpi-value">4,229<span class="kpi-unit">人</span></div><div class="kpi-change">12エリア計測合算（山大除外）</div></div>
+<div class="kpi-card"><div class="kpi-label">計測エリア数</div><div class="kpi-value">12<span class="kpi-unit">箇所</span></div><div class="kpi-change">OF参加企業のみ</div></div>
+<div class="kpi-card"><div class="kpi-label">最大集客エリア</div><div class="kpi-value" style="font-size:18px">花角味噌醸造</div><div class="kpi-change">3日間 763人（18.0%）</div></div>
+<div class="kpi-card"><div class="kpi-label">最大日</div><div class="kpi-value" style="font-size:22px">9/13<span class="kpi-unit">土</span></div><div class="kpi-change">2,171人（51.3%）</div></div>
+</div>
+
+<div class="section-card">
+<div class="section-title">日別 × エリア別 訪問者数（2025/9/11-13）</div>
+<div class="section-desc">3日間の日別訪問者数。日中は山大工学部が圧倒的、最終日（土）は花角味噌・米沢織物おりじん・紅花染新田が伸びる</div>
+<div class="chart-container tall"><canvas id="chartFactoryDaily"></canvas></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">エリア別 3日間合計（訪問者数）</div><div class="section-desc">山大工学部除く12参加企業の比較。花角味噌・平山孫兵衛・Nitorito・紅花染新田が上位</div><div class="chart-container tall"><canvas id="chartFactoryByArea"></canvas></div></div>
+<div class="section-card"><div class="section-title">時間帯別 訪問者数（土曜 vs 平日）</div><div class="section-desc">休日（9/13土）は10〜13時にピーク。平日（9/11木・12金）は12〜17時に分散</div><div class="chart-container tall"><canvas id="chartFactoryHourly"></canvas></div></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">来訪者 居住地（都道府県別）</div><div class="section-desc">山形県内が圧倒的、次いで福島県・東京都。県外も8都県から確認</div><div class="chart-container"><canvas id="chartFactoryPref"></canvas></div></div>
+<div class="section-card"><div class="section-title">来訪者 居住地（市区町村別 TOP10）</div><div class="section-desc">米沢市民が中心、高畠町・南陽市など置賜エリアからの来訪も多数</div><div class="chart-container"><canvas id="chartFactoryCity"></canvas></div></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">居住距離別 来訪者比率</div><div class="section-desc">休日は遠方（30〜100km圏）からの来訪比率が高まる。平日は3〜5km圏が中心</div><div class="chart-container"><canvas id="chartFactoryDistance"></canvas></div></div>
+<div class="section-card"><div class="section-title">滞在時間別 来訪者比率</div><div class="section-desc">休日は2〜5時間滞在が最多（観光来訪）。平日5〜12時間は関係者・学生想定</div><div class="chart-container"><canvas id="chartFactoryStay"></canvas></div></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">年代別 来訪者比率</div><div class="section-desc">休日は10代以下＋60代が中心、平日は30〜60代の社会人比率が上昇</div><div class="chart-container"><canvas id="chartFactoryAge"></canvas></div></div>
+<div class="section-card"><div class="section-title">性別 比率（休日 vs 平日）</div><div class="section-desc">いずれも女性比率が高い（女性62〜72%）</div><div class="chart-container"><canvas id="chartFactoryGender"></canvas></div></div>
+</div>
+
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">SNS Response · 360°オープンファクトリー</div>
+<div class="section-h2">SNS反響</div>
+<div class="section-lead">X（旧Twitter）の対象ハッシュタグ投稿を集計（最大上位30件）。詳細は「データソース」タブでClaude Codeコマンド付き一覧</div>
+</div>
+
+
+<div class="dummy-banner" style="margin-top:16px"><div class="dummy-banner-icon">⚠️</div>
+<div><strong>DUMMY DATA — ダミーデータ表示中</strong>　Claude Codeで <code style="background:#fff;padding:2px 6px;border-radius:3px">/sns-update</code> を実行すると実データに置き換わります</div></div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">投稿数</div><div class="kpi-value" id="factory-sns-posts">—<span class="kpi-unit">件</span></div><div class="kpi-change" id="factory-sns-period">—</div></div>
+<div class="kpi-card"><div class="kpi-label">推定インプレッション</div><div class="kpi-value" id="factory-sns-imp">—<span class="kpi-unit">回</span></div><div class="kpi-change">投稿者フォロワー × 0.3</div></div>
+<div class="kpi-card"><div class="kpi-label">ポジティブ率</div><div class="kpi-value" id="factory-sns-pos">—<span class="kpi-unit">%</span></div><div class="kpi-change" id="factory-sns-sentiment-meta">—</div></div>
+<div class="kpi-card"><div class="kpi-label">影響力TOP投稿</div><div class="kpi-value" id="factory-sns-top-eng" style="font-size:18px">—</div><div class="kpi-change" id="factory-sns-top-platform">—</div></div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">ワードクラウド</div><div class="section-desc">投稿本文を形態素解析し、出現頻度の高いキーワードを可視化</div><div class="wordcloud-container"><canvas id="factorySnsWordcloud"></canvas></div></div>
+<div class="sns-summary-card" id="factory-sns-summary">—</div>
+</div>
+<div class="grid-2">
+<div class="section-card"><div class="section-title">関連ハッシュタグ TOP10</div><div class="section-desc">対象ハッシュタグと共起したハッシュタグの出現回数</div><div id="factory-sns-hashtags" style="line-height:2.2"></div></div>
+<div class="section-card">
+<div class="section-title">SNSデータの読み解きガイド</div>
+<div class="section-desc">この要約はSNS投稿の定性分析。実データ更新時にClaudeが自動で再生成します</div>
+<ul style="font-size:12.5px;line-height:1.85;padding-left:18px;color:var(--text)">
+<li><strong>ムードバッジ</strong>：投稿全体の感情傾向（ポジ/ネガ/混在）</li>
+<li><strong>ポジティブ反応</strong>：来訪者が好意的に言及したポイント</li>
+<li><strong>ネガティブ反応</strong>：改善の余地がある運営・体験面</li>
+<li><strong>注目された動き</strong>：拡散の起点となった投稿、トレンド傾向</li>
+<li>右側「改善点・提案」セクションで、これらを基にした具体的アクション案を整理</li>
+</ul>
+</div>
+</div>
+<div class="grid-2">
+<div class="section-card">
+<div class="section-title">感情分析（ポジ／中立／ネガ）</div>
+<div class="section-desc">日本語感情極性辞書ベースの簡易判定</div>
+<div class="sentiment-bar" id="factory-sns-sentiment-bar" style="margin-top:16px"></div>
+<div style="margin-top:14px;font-size:12.5px;color:var(--text-muted);line-height:1.8" id="factory-sns-sentiment-text"></div>
+</div>
+<div class="section-card"><div class="section-title">言及量タイムライン</div><div class="section-desc">開催日±2週間の日別投稿数</div><div class="chart-container"><canvas id="factorySnsTimeline"></canvas></div></div>
+</div>
+<div class="section-card">
+<div class="section-title">影響力TOP投稿（いいね・リポスト数）</div>
+<div class="section-desc">拡散の起点となった投稿。投稿者プロフィールへのリンクは省略</div>
+<div id="factory-sns-top-posts"></div>
+<div style="margin-top:18px;padding:12px 16px;background:#0f172a;color:#e2e8f0;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:12px">
+<span style="color:#94a3b8">このイベントを更新：</span>
+<span class="cc-mini-cmd" id="factory-sns-cmd" data-copy="/sns-update —" style="cursor:pointer">— <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+<div class="section-header" style="margin-top:36px;border-top:2px solid var(--border);padding-top:24px">
+<div class="section-num">Improvement Ideas · 改善案（複数データ統合）</div>
+<div class="section-h2">改善点・提案アイディア</div>
+<div class="section-lead" id="factory-ideas-summary">データを統合分析した改善余地のメモ。会議で議論する叩き台</div>
+</div>
+<div class="ideas-meta-bar" id="factory-ideas-meta"></div>
+<div class="ideas-grid" id="factory-ideas-grid"></div>
+<div class="ideas-note">
+カテゴリ凡例：
+<span class="idea-cat-tag idea-cat-shukyaku" style="font-size:9.5px;padding:2px 8px">集客</span>
+<span class="idea-cat-tag idea-cat-manzoku" style="font-size:9.5px;padding:2px 8px">満足度</span>
+<span class="idea-cat-tag idea-cat-unei" style="font-size:9.5px;padding:2px 8px">運営</span>
+<span class="idea-cat-tag idea-cat-pr" style="font-size:9.5px;padding:2px 8px">PR</span>
+<span class="idea-cat-tag idea-cat-shouhin" style="font-size:9.5px;padding:2px 8px">商品開発</span>
+<span class="idea-cat-tag idea-cat-data" style="font-size:9.5px;padding:2px 8px">データ整備</span>
+<br>
+<span style="display:inline-block;margin-top:8px;color:var(--accent);font-weight:600">▶ 更新コマンド：</span>
+<span class="cc-mini-cmd" data-copy="/ideas-generate 360-of-2025" style="cursor:pointer">/ideas-generate 360-of-2025 <span class="copy-icon">⧉</span></span>
+</div>
+</div>
+
+<!-- 取得地点 -->
+<div id="panel-locations" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">06 — Data Locations</div>
+<div class="section-h2">取得地点・エリア</div>
+<div class="section-lead">人流計測ポイント（500m単位）は祭り会場と周辺観光資源を含むエリアで取得。カメラ車両カウントは固定3拠点</div>
+</div>
+<div class="section-card">
+<div class="section-title">米沢市内 データ取得地点マップ</div>
+<div class="section-desc">OpenStreetMapに4カメラ拠点・主要祭り会場・ハブ施設を実位置でプロット。マーカークリックで詳細表示</div>
+<div style="background:#f5f1e6;border:1px solid var(--border);border-radius:6px;padding:10px">
+<div class="osm-legend">
+<div class="osm-legend-item"><span class="pin" style="background:#a01c1c"></span>カメラ拠点（4箇所）</div>
+<div class="osm-legend-item"><span class="pin" style="background:#c9a96e"></span>祭り会場・観光資源</div>
+<div class="osm-legend-item"><span class="pin" style="background:#3b6a8f"></span>ハブ施設（駅・IC等）</div>
+<div class="osm-legend-item" style="margin-left:auto;color:#94a3b8;font-size:11px">© OpenStreetMap contributors</div>
+</div>
+<div id="osm-map" class="osm-map"></div>
+</div>
+</div>
+<div class="section-card">
+<div class="section-title">人流データ取得メッシュ詳細</div>
+<table class="data-source-table">
+<thead><tr><th>対象イベント</th><th>エリア名</th><th>計測ポイントID（仮）</th><th>緯度</th><th>経度</th><th>取得目的</th></tr></thead>
+<tbody>
+<tr><td>上杉まつり / 雪灯篭</td><td>上杉神社・伝国の杜</td><td>YNZ-A01〜A04</td><td>37.9120</td><td>140.1130</td><td>会場集客把握</td></tr>
+<tr><td>戦国花火大会</td><td>米沢市営野球場周辺</td><td>YNZ-B01〜B04</td><td>37.9220</td><td>140.1250</td><td>会場集客把握</td></tr>
+<tr><td>360°オープンファクトリー</td><td>米沢織エリア</td><td>YNZ-C01〜C03</td><td>37.9050</td><td>140.1180</td><td>企業間回遊</td></tr>
+<tr><td>水上花火大会</td><td>松川河川敷</td><td>YNZ-D01〜D02</td><td>37.9100</td><td>140.1300</td><td>河川敷集客</td></tr>
+<tr><td>共通（参照）</td><td>米沢駅周辺</td><td>YNZ-Z01</td><td>37.9085</td><td>140.1230</td><td>駅利用ベースライン</td></tr>
+</tbody></table>
+</div>
+<div class="section-card">
+<div class="section-title">カメラ車両カウント拠点詳細</div>
+<table class="data-source-table">
+<thead><tr><th>拠点名</th><th>所在地</th><th>緯度</th><th>経度</th><th>位置特性</th><th>取得目的</th></tr></thead>
+<tbody>
+<tr><td>道の駅米沢</td><td>米沢市川井（米沢中央IC付近）</td><td>37.9000</td><td>140.1500</td><td>東部ゲートウェイ</td><td>仙台・福島方面からの流入</td></tr>
+<tr><td>道の駅田沢</td><td>米沢市口田沢（南方）</td><td>37.8500</td><td>140.1200</td><td>南部ゲートウェイ</td><td>白布温泉・天元台方面の通行</td></tr>
+<tr><td>上杉城史苑</td><td>米沢市丸の内（上杉神社隣接）</td><td>37.9120</td><td>140.1110</td><td>市街地中心部</td><td>祭り会場直近の訪問車両数</td></tr>
+<tr><td>道の駅ふくしま</td><td>福島県福島市大笹生（東北中央道直結）</td><td>37.8200</td><td>140.4100</td><td>県境ゲートウェイ</td><td>福島・仙台方面からの広域流入指標</td></tr>
+</tbody></table>
+</div>
+</div>
+
+<!-- 宿泊データ（じゃらん） -->
+<div id="panel-lodging" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">08 — Lodging · R8 GW</div>
+<div class="section-h2">宿泊データ（じゃらん エリアダッシュボード ver.2）</div>
+<div class="section-lead">R8（2026年度）GW期間 5/1〜5/8 の宿泊実績。出典：じゃらんエリアダッシュボード（リクルート）／比較年：1年前（2025年GW）／データソース更新日時：2026-05-08 09:10</div>
+</div>
+
+<div class="exec-summary">
+<div class="exec-summary-eyebrow">Executive Summary · 要約</div>
+<h3 class="exec-summary-headline">取扱額 <strong>+27%</strong>、人泊数 +18%、単価 +8%。<strong>すべて前年超え</strong>で県・他地域平均と同水準。米沢の宿泊需要は確実に回復。</h3>
+<div class="exec-summary-grid">
+<div>
+<div class="exec-summary-label">📊 主要発見（What）</div>
+<ul>
+<li>取扱額 2,827万円（+27%）／人泊数 2,014人（+18%）／単価 14,035円（+8%）</li>
+<li>旅館が最大規模：取扱額1,779万円（+32%）／単価21,250円（+9%）／人泊数837人</li>
+<li>ホテルは数量で上回る：取扱額1,007万円（+19%）／人泊数1,137人／単価8,853円</li>
+<li>発地TOP：東京17%、宮城11%、埼玉9%、神奈川9%、千葉7%、山形6% — <strong>関東圏で42%</strong></li>
+</ul>
+</div>
+<div>
+<div class="exec-summary-label">💡 示唆・申し送り（So What）</div>
+<ul>
+<li>関東圏42%の事実は<strong>東京・首都圏向け早期プロモが奏功</strong>している証拠。15-60日前の予約者層（全体の45%）に向けた早期割引・コンテンツ送客が継続的に効果的</li>
+<li>ペンションのみ単価▲13%（旅館・ホテルとは別の動き）。<strong>価格帯セグメント別の施策設計</strong>が必要</li>
+<li>20-30代比率は自地域18% vs 他地域29%。<strong>若年層へのリーチがまだ伸びしろあり</strong>。SNS・体験型コンテンツでの訴求が有効</li>
+<li>他地域平均単価18,009円に対し米沢14,035円。<strong>単価向上の余地は約28%</strong>。富裕層・滞在型コンテンツで埋める設計が課題</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="note">
+<strong>📊 宿泊概況：</strong>2026年GW期間（5/1〜5/8）の取扱額は前年比 <strong>+27%</strong>、人泊数は <strong>+18%</strong>、人泊単価は <strong>+8%</strong> と全指標で前年超え。県平均（県伸び率125%）を上回り、他地域平均（伸び率125%）と同水準。
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">取扱額（合計）</div><div class="kpi-value">2,827<span class="kpi-unit">万円</span></div><div class="kpi-change up">▲ 前年比 +27%（前年2,220万円）</div></div>
+<div class="kpi-card"><div class="kpi-label">人泊数（合計）</div><div class="kpi-value">2,014<span class="kpi-unit">人</span></div><div class="kpi-change up">▲ 前年比 +18%（前年1,702人）</div></div>
+<div class="kpi-card"><div class="kpi-label">人泊単価（合計）</div><div class="kpi-value">14,035<span class="kpi-unit">円</span></div><div class="kpi-change up">▲ 前年比 +8%（前年13,042円）</div></div>
+<div class="kpi-card"><div class="kpi-label">他地域平均 単価</div><div class="kpi-value">18,009<span class="kpi-unit">円</span></div><div class="kpi-change">参考値（米沢比 1.28倍）</div></div>
+</div>
+
+<div class="highlights">
+<h3>主要ハイライト</h3>
+<ul>
+<li><span class="hl-tag zentai">全体</span>取扱額2,827万円（前年比+27%）。県伸び率125%・他地域伸び率125%と概ね同水準で着地</li>
+<li><span class="hl-tag shukuhaku">宿タイプ</span>旅館が最大規模：取扱額1,779万円（+32%）／人泊数837人（+21%）／単価21,250円（+9%）</li>
+<li><span class="hl-tag shukuhaku">宿タイプ</span>ホテル：取扱額1,007万円（+19%）／人泊数1,137人（+15%）／単価8,853円（+3%）</li>
+<li><span class="hl-tag shukuhaku">宿タイプ</span>ペンション：単価10,338円（前年11,871円・▲13%）と単価のみ低下、人泊数は40人（+67%）</li>
+<li><span class="hl-tag kennai">発地</span>東京都が最大シェア17%（自地域）／18%（他地域）。次いで宮城県11-12%、埼玉県・神奈川県・千葉県・福島県が続く</li>
+<li><span class="hl-tag jikan">予約タイミング</span>31〜60日前(23%)＋15〜30日前(22%)で全体の45%。早期予約傾向。当日予約は5%のみ</li>
+<li><span class="hl-tag zentai">属性</span>50代が最多（自地域33%）、次いで40代（25%）。20-30代は他地域（11%/18%）の方が比率が高い</li>
+<li><span class="hl-tag zentai">属性</span>2人男女（夫婦・カップル）が39%で最多。自地域は1人男性30%が次点（出張・単独旅行）、他地域は家族16.8%が高い</li>
+</ul>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">取扱額・人泊数・人泊単価（前年比較）</div><div class="section-desc">合計＋宿タイプ別の3指標</div><div class="chart-container tall"><canvas id="chartLodgeBalance"></canvas></div></div>
+<div class="section-card"><div class="section-title">宿タイプ別 取扱額シェア（実績年）</div><div class="section-desc">旅館が63%、ホテル36%が中心構成</div><div class="chart-container tall"><canvas id="chartLodgeType"></canvas></div></div>
+</div>
+
+<div class="section-card">
+<div class="section-title">予約者発地 TOP（自地域 vs 他地域・実績年）</div>
+<div class="section-desc">米沢への予約者の居住地分布。東京都が首位、北関東+南東北で全体の大半</div>
+<div class="chart-container tall"><canvas id="chartLodgeOrigin"></canvas></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">予約リードタイム</div><div class="section-desc">31〜60日前と15〜30日前で全体の45%。早期予約が多い</div><div class="chart-container"><canvas id="chartLodgeLead"></canvas></div></div>
+<div class="section-card"><div class="section-title">予約年代別シェア（自地域）</div><div class="section-desc">50代33%が最多。40代25%、60代以上18%、30代15%</div><div class="chart-container"><canvas id="chartLodgeAge"></canvas></div></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card"><div class="section-title">リピーター率（実績 vs 前年）</div><div class="section-desc">自地域・他地域別、リピート/新規の比率</div><div class="chart-container"><canvas id="chartLodgeRepeat"></canvas></div></div>
+<div class="section-card"><div class="section-title">グループサイズ × 男女内訳（自地域）</div><div class="section-desc">2人男女39.3%が最多、1人男性30.3%が次点</div><div class="chart-container"><canvas id="chartLodgeGroup"></canvas></div></div>
+</div>
+
+<div class="section-card">
+<div class="section-title">宿タイプ別 詳細（前年比較）</div>
+<table class="comp-table">
+<thead><tr><th>宿タイプ</th><th class="num">取扱額（実績）</th><th class="num">取扱額（前年）</th><th class="num">伸び率</th><th class="num">人泊数（実績）</th><th class="num">人泊単価（実績）</th><th class="num">単価伸び率</th></tr></thead>
+<tbody>
+<tr style="font-weight:700;background:#fdf6e3"><td>合計</td><td class="num">2,827万円</td><td class="num">2,220万円</td><td class="num delta-up">+27%</td><td class="num">2,014人</td><td class="num">14,035円</td><td class="num delta-up">+8%</td></tr>
+<tr><td>ホテル</td><td class="num">1,007万円</td><td class="num">849万円</td><td class="num delta-up">+19%</td><td class="num">1,137人</td><td class="num">8,853円</td><td class="num delta-up">+3%</td></tr>
+<tr><td>旅館</td><td class="num">1,779万円</td><td class="num">1,343万円</td><td class="num delta-up">+32%</td><td class="num">837人</td><td class="num">21,250円</td><td class="num delta-up">+9%</td></tr>
+<tr><td>ペンション</td><td class="num">41万円</td><td class="num">28万円</td><td class="num delta-up">+45%</td><td class="num">40人</td><td class="num">10,338円</td><td class="num delta-down">-13%</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- カメラ車両カウント -->
+<div id="panel-camera" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">07 — Camera · Real Data</div>
+<div class="section-h2">カメラ車両カウント</div>
+<div class="section-lead">米沢市・周辺の道の駅3拠点と上杉城史苑に設置されたカメラの訪問車両数。対象期間：2025/04/01〜2026/03/31</div>
+</div>
+
+<div class="exec-summary">
+<div class="exec-summary-eyebrow">Executive Summary · 要約</div>
+<h3 class="exec-summary-headline">4拠点で<strong>年間150万台超</strong>を計測。広域流入は <strong>道の駅ふくしま</strong>、市内流入は <strong>上杉城史苑</strong> が要だが、後者の復旧が急務。</h3>
+<div class="exec-summary-grid">
+<div>
+<div class="exec-summary-label">📊 主要発見（What）</div>
+<ul>
+<li>道の駅ふくしま <strong>89.7万台</strong>（333日返却・最大カバレッジ）— 県境ゲートウェイ</li>
+<li>道の駅米沢 40.3万台（322日返却・9/15以降は運用変更により正常取得）</li>
+<li>上杉城史苑 18.3万台（4-7月のみ・<strong>8月以降データ取得停止中で要復旧</strong>）</li>
+<li>道の駅田沢 2.2万台（302日返却・南方ゲート指標として有効）</li>
+</ul>
+</div>
+<div>
+<div class="exec-summary-label">💡 示唆・申し送り（So What）</div>
+<ul>
+<li><strong>上杉城史苑の復旧が最優先</strong>。祭り会場直近の最重要拠点が8月以降全データ欠落。OF・戦国花火・雪灯篭の評価精度が大きく改善する</li>
+<li>道の駅米沢は<strong>9/15を境にカメラ運用変更</strong>（カメラA停止→カメラBが入場記録に切替）。長期トレンド比較は9/15以降のデータベースで実施</li>
+<li>8/8以前の道の駅米沢の入場記録は実態の捕捉率が低い参考値。<strong>訪問者数推計に使う場合は注釈必須</strong></li>
+<li>道の駅ふくしまは祭り起因の流入抽出には通常日との差分分析が必要</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="note" style="background:#fef9c3;border-left-color:#ca8a04;color:#713f12">
+<strong>📊 カメラ計測：</strong>4拠点固定カメラの365日分日別データ。一部拠点は機器メンテナンス等によりデータ取得期間に欠落あり（その期間は表示しません）。
+</div>
+
+<div class="note" style="background:#fef2f2;border-left-color:#dc2626;color:#7f1d1d">
+<strong>⚠️ 道の駅米沢 入場データの留意事項（運営からのご報告）：</strong>道の駅米沢にはカメラ2台（A・B）が設置されています。
+<ul style="margin:8px 0 0 18px;padding:0;font-size:12px;line-height:1.9">
+<li><strong>〜2025/08/07：</strong>カメラA・Bともに稼働、訪問ともに記録あり</li>
+<li><strong>2025/08/08：</strong>カメラAの撮影量が急減、入場が大きく減少</li>
+<li><strong>2025/08/09〜09/14：</strong>カメラAが停止 → <strong>入場のみ記録なし</strong>（退場はカメラBで通常どおり）</li>
+<li><strong>2025/09/15以降：</strong>カメラBが入場も記録するよう運用変更 → 訪問ともに正常取得</li>
+</ul>
+<div style="margin-top:8px;font-size:12px"><strong>長期トレンドを比較される際は9/15を境に分けて参照してください。</strong>また、8/8以前の入場件数は実際の来場数を完全には反映していない可能性があります。</div>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">道の駅ふくしま 年度合計</div><div class="kpi-value">896,832<span class="kpi-unit">台</span></div><div class="kpi-change">計測カバレッジ最大（年間ほぼ全期間）</div></div>
+<div class="kpi-card"><div class="kpi-label">道の駅米沢 年度合計</div><div class="kpi-value">402,623<span class="kpi-unit">台</span></div><div class="kpi-change">9/15以降の値が信頼できる集計</div></div>
+<div class="kpi-card"><div class="kpi-label">道の駅田沢 年度合計</div><div class="kpi-value">22,187<span class="kpi-unit">台</span></div><div class="kpi-change">南部ゲートウェイ</div></div>
+<div class="kpi-card"><div class="kpi-label">道の駅田沢 年度合計</div><div class="kpi-value">22,187<span class="kpi-unit">台</span></div><div class="kpi-change">南部ゲートウェイ</div></div>
+</div>
+
+<div class="section-card">
+<div class="section-title">月別 訪問車両数（4拠点 推移）</div>
+<div class="section-desc">2025年4月〜2026年3月の月別合計。上杉城史苑は7月中旬以降データ取得停止中（要復旧）。グレー部分は計測なし期間</div>
+<div class="chart-container tall"><canvas id="chartCamMonthly"></canvas></div>
+</div>
+
+<div class="grid-2">
+<div class="section-card">
+<div class="section-title">道の駅ふくしま 月別推移</div>
+<div class="section-desc">県境ゲートウェイの広域流入指標。年間89.7万台が通過</div>
+<div class="chart-container"><canvas id="chartCamFukushima"></canvas></div>
+</div>
+<div class="section-card">
+<div class="section-title">道の駅米沢 月別推移</div>
+<div class="section-desc">9月中旬以降に計測本格化。秋〜冬に流入増</div>
+<div class="chart-container"><canvas id="chartCamYonezawa"></canvas></div>
+</div>
+</div>
+
+<div class="section-card">
+<div class="section-title">主要イベント期間中の訪問車両数（4拠点合計）</div>
+<div class="section-desc">各祭り日（または期間）における4拠点カメラの訪問車両数</div>
+<table class="comp-table">
+<thead><tr><th>イベント</th><th>期間</th><th class="num">道の駅米沢</th><th class="num">上杉城史苑</th><th class="num">道の駅田沢</th><th class="num">道の駅ふくしま</th><th class="num">合計</th></tr></thead>
+<tbody>
+<tr><td>上杉まつり</td><td>4/29〜5/3</td><td class="num">182</td><td class="num">7,453</td><td class="num">647</td><td class="num">11,049</td><td class="num"><strong>19,331</strong></td></tr>
+<tr><td>水上花火</td><td>8/8</td><td class="num">24</td><td class="num" style="color:#94a3b8">—</td><td class="num">12</td><td class="num" style="color:#94a3b8">—</td><td class="num"><strong>36</strong>※</td></tr>
+<tr><td>360°オープンファクトリー</td><td>9/11〜9/13</td><td class="num" style="color:#94a3b8">—</td><td class="num" style="color:#94a3b8">—</td><td class="num">28</td><td class="num">10,808</td><td class="num"><strong>10,836</strong>※</td></tr>
+<tr><td>戦国花火大会</td><td>10/11</td><td class="num">1,718</td><td class="num" style="color:#94a3b8">—</td><td class="num">260</td><td class="num">3,620</td><td class="num"><strong>5,598</strong>※</td></tr>
+</tbody>
+</table>
+<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;line-height:1.7">※ 一部拠点が「計測なし」のため、合計はその拠点を除いた値。比較時は注意。<br>※ 上杉まつりは5日間合計（他は単日または3日間）。<br>※ ふくしまの数値は道の駅の常態的な訪問車両数（祭りに起因しない自然交通）が大半を占める可能性あり。</div>
+</div>
+
+<div class="section-card">
+<div class="section-title">月別 計測日数（取得状況）</div>
+<div class="section-desc">各拠点で実際にデータが取得できた日数。30日中30日＝完全取得。上杉城史苑は8月以降データ取得停止中</div>
+<div class="chart-container tall"><canvas id="chartCamReturned"></canvas></div>
+</div>
+
+<div class="section-card">
+<div class="section-title">4拠点 詳細</div>
+<table class="data-source-table">
+<thead><tr><th>拠点名</th><th>所在地</th><th>緯度・経度</th><th>位置特性</th><th>取得目的</th><th>データ状況</th></tr></thead>
+<tbody>
+<tr><td>道の駅米沢</td><td>米沢市川井（米沢中央IC付近）</td><td>37.9000 / 140.1500</td><td>東部ゲートウェイ</td><td>仙台・福島方面からの流入</td><td><span class="status-pill ready">取得中</span> 2025/9/15以降の値が信頼できる</td></tr>
+<tr><td>道の駅田沢</td><td>米沢市口田沢（南方）</td><td>37.8500 / 140.1200</td><td>南部ゲートウェイ</td><td>白布温泉・天元台方面の通行</td><td><span class="status-pill ready">取得中</span> ほぼ全期間データあり</td></tr>
+<tr><td>上杉城史苑</td><td>米沢市丸の内（上杉神社隣接）</td><td>37.9120 / 140.1110</td><td>市街地中心部</td><td>祭り会場直近の訪問車両数</td><td><span class="status-pill pending">要復旧</span> 2025/7/16以降データ取得停止中</td></tr>
+<tr><td>道の駅ふくしま</td><td>福島県福島市大笹生（東北中央道直結）</td><td>37.8200 / 140.4100</td><td>県境ゲートウェイ</td><td>広域流入指標</td><td><span class="status-pill ready">取得中</span> 年間ほぼ全期間データあり</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- データソース管理 -->
+<div id="panel-data" class="panel" style="display:none">
+<div class="section-header">
+<div class="section-num">07 — Data Source Management</div>
+<div class="section-h2">データソース管理</div>
+<div class="section-lead">本ダッシュボードに投入されたデータソース一覧。実データ投入前のチェックリスト</div>
+</div>
+<div class="section-card">
+<table class="data-source-table">
+<thead><tr><th>イベント</th><th>データ種別</th><th>提供元</th><th>対象期間</th><th>粒度</th><th>状態</th></tr></thead>
+<tbody>
+<tr><td>置賜GW人流レポート</td><td>人流データ</td><td>人流データ提供</td><td>4/28〜5/5</td><td>日別×拠点</td><td><span class="status-pill ready">投入済</span></td></tr>
+<tr><td>上杉まつり</td><td>人流データ / 宿泊 / カメラ</td><td>各事業者</td><td>4/26〜5/5</td><td>各種</td><td><span class="status-pill pending">未投入</span></td></tr>
+<tr><td>水上花火大会</td><td>人流データ / 宿泊 / カメラ</td><td>各事業者</td><td>8/5〜8/11</td><td>各種</td><td><span class="status-pill pending">未投入</span></td></tr>
+<tr><td>360°OF</td><td>人流データ / 宿泊 / カメラ</td><td>各事業者</td><td>9/8〜9/15</td><td>各種</td><td><span class="status-pill pending">未投入</span></td></tr>
+<tr><td>戦国花火大会</td><td>人流データ / 宿泊 / カメラ</td><td>各事業者</td><td>10/8〜10/14</td><td>各種</td><td><span class="status-pill pending">未投入</span></td></tr>
+<tr><td>雪灯篭まつり</td><td>人流データ / 宿泊 / カメラ</td><td>各事業者</td><td>2/12〜2/17</td><td>各種</td><td><span class="status-pill pending">未投入</span></td></tr>
+</tbody></table>
+</div>
+
+<div class="cc-card" style="margin-top:32px">
+<div class="cc-card-header">
+<div class="cc-card-icon">CC</div>
+<div>
+<div class="cc-card-title">Claude Code で SNS 反響を自動更新</div>
+<div class="cc-card-subtitle">手動収集ゼロ ／ Yahoo!リアルタイム検索からClaudeが取得・解析・コミットまで実行</div>
+</div>
+</div>
+<div class="cc-card-body">
+イベント終了後、ターミナルで Claude Code を起動して<strong>下記のスラッシュコマンドを叩くだけ</strong>でSNS反響データが最新化されます。Claudeが Yahoo!リアルタイム検索からX投稿を取得し、感情分析・ワードクラウド生成・JSON更新・git pushまで自動実行します。
+</div>
+<div class="cc-cmd">
+<span class="cc-cmd-text">/sns-update <span class="arg">{event-id}</span></span>
+<button class="cc-copy-btn" data-copy="/sns-update {event-id}">COPY</button>
+</div>
+<div class="cc-flow">
+<span class="cc-flow-step">1. Yahoo!リアルタイム検索</span>
+<span class="cc-flow-arrow">→</span>
+<span class="cc-flow-step">2. Claude が投稿を抽出</span>
+<span class="cc-flow-arrow">→</span>
+<span class="cc-flow-step">3. CSV保存</span>
+<span class="cc-flow-arrow">→</span>
+<span class="cc-flow-step">4. 解析（感情・キーワード）</span>
+<span class="cc-flow-arrow">→</span>
+<span class="cc-flow-step">5. JSON更新 & git push</span>
+<span class="cc-flow-arrow">→</span>
+<span class="cc-flow-step">6. Netlify自動デプロイ</span>
+</div>
+</div>
+
+<div class="section-card">
+<div class="section-title">SNS反響 イベント別 更新ステータス</div>
+<div class="section-desc">各イベントの最終更新日時と、ワンクリックで実行できる更新コマンド。コマンドはコピーしてClaude Codeに貼り付けて使用</div>
+<table class="sns-status-table">
+<thead><tr><th>イベント</th><th>開催日</th><th>状態</th><th>投稿数</th><th>最終更新</th><th style="width:280px">更新コマンド</th></tr></thead>
+<tbody>
+<tr><td><strong>米沢上杉まつり</strong></td><td>4/29-5/3</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>187件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update uesugi-matsuri-2025">/sns-update uesugi-matsuri-2025 <span class="copy-icon">⧉</span></span></td></tr>
+<tr><td><strong>米沢納涼水上花火大会</strong></td><td>8/8</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>92件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update suijou-hanabi-2025">/sns-update suijou-hanabi-2025 <span class="copy-icon">⧉</span></span></td></tr>
+<tr><td><strong>360°オープンファクトリー</strong></td><td>9/11-13</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>64件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update 360-of-2025">/sns-update 360-of-2025 <span class="copy-icon">⧉</span></span></td></tr>
+<tr><td><strong>なせばなる秋まつり</strong></td><td>9/27-28</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>73件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update naseba-aki-2025">/sns-update naseba-aki-2025 <span class="copy-icon">⧉</span></span></td></tr>
+<tr><td><strong>よねざわ戦国花火大会</strong></td><td>10/11</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>312件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update sengoku-hanabi-2025">/sns-update sengoku-hanabi-2025 <span class="copy-icon">⧉</span></span></td></tr>
+<tr><td><strong>上杉雪灯篭まつり</strong></td><td>2/14-15</td><td><span class="status-dot dummy"></span><span class="status-label">サンプル</span></td><td>124件</td><td><span class="status-label">—</span></td><td><span class="cc-mini-cmd" data-copy="/sns-update yukidouro-2026">/sns-update yukidouro-2026 <span class="copy-icon">⧉</span></span></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="section-card">
+<div class="section-title">セットアップ手順（初回のみ）</div>
+<div class="section-desc">Claude Code を最初に使うときのセットアップ。一度設定すれば以降はワンコマンドで運用可能</div>
+<ol style="padding-left:24px;font-size:13px;line-height:2;color:var(--text)">
+<li><a href="https://www.anthropic.com/claude-code" target="_blank" style="color:var(--primary);text-decoration:none">Claude Code をインストール</a>（macOS / Linux / Windows対応）</li>
+<li>本リポジトリをクローン：<code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">git clone &lt;repo-url&gt; && cd yonezawa-dashboard</code></li>
+<li>依存パッケージをインストール：<code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">npm install</code></li>
+<li>ターミナルで <code style="background:#f1f5f9;padding:2px 6px;border-radius:3px">claude</code> と入力して Claude Code を起動</li>
+<li>スラッシュコマンドを実行（上記の COPY ボタンから貼付）</li>
+</ol>
+<div style="margin-top:16px;padding:14px 18px;background:var(--paper);border-radius:6px;font-size:12px;color:var(--text-muted);line-height:1.8">
+<strong style="color:var(--text)">補足：</strong>
+このスラッシュコマンドの実体は <code style="background:#fff;padding:2px 6px;border-radius:3px">.claude/commands/sns-update.md</code> に定義されています。Claude Code はこのファイルを読み、書かれている手順を順番に実行します。手順を変更したい場合はこのMarkdownを編集してください。
+</div>
+</div>
+</div>
+
+</main>
+
+<footer class="site-footer">
+<div class="container">
+<div class="footer-grid">
+<div>
+<div class="footer-brand">プラットヨネザワ／米沢観光推進機構</div>
+<div>米沢主要イベント データ分析ダッシュボード｜DRAFT v0.1</div>
+<div style="margin-top:8px">出典：宿泊データ／人流データ位置情報／カメラ車両カウント（3拠点） ／ 最終更新：2026-05-07</div>
+</div>
+<div>
+<h4>NAVIGATION</h4>
+<div>全体サマリー</div>
+<div>置賜GW人流</div>
+<div>四季のまつり</div>
+<div>戦国花火大会</div>
+<div>360°オープンファクトリー</div>
+</div>
+<div>
+<h4>YEARS</h4>
+<div>R7 / 2025年度（公開中）</div>
+<div style="opacity:0.5">R6 / 2024年度（準備中）</div>
+<div style="opacity:0.5">R8 / 2026年度（実施中）</div>
+</div>
+</div>
+<div class="footer-bottom">© PLAT YONEZAWA INC. ／ DMO登録第30119号 ／ 「置賜GW人流（実データ）」タブのみ実数値、他タブはモック</div>
+</div>
+</footer>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const panels = ['all','gw','shiki','sengoku','factory','locations','camera','lodging','data'].map(id => document.getElementById('panel-' + id)).filter(p => p);
+
+function switchTab(targetTab) {
+  tabs.forEach(t => t.classList.remove('active'));
+  targetTab.classList.add('active');
+  const target = targetTab.dataset.target;
+  panels.forEach(p => { if(p) p.style.display = 'none'; });
+  const panel = document.getElementById('panel-' + target);
+  if (panel) panel.style.display = 'block';
+  window.scrollTo({top: 0, behavior:'smooth'});
+}
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => switchTab(tab));
+});
+
+// Year nav (R6/R7/R8): filters which tabs are visible and switches to first visible
+function switchYear(year) {
+  document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.year-btn[data-year="'+year+'"]').classList.add('active');
+  let firstVisible = null;
+  tabs.forEach(tab => {
+    const years = (tab.dataset.year || 'r7').split(',');
+    if (years.includes(year)) {
+      tab.style.display = '';
+      if (!firstVisible) firstVisible = tab;
+    } else {
+      tab.style.display = 'none';
+      tab.classList.remove('active');
+    }
+  });
+  panels.forEach(p => { if(p) p.style.display = 'none'; });
+  if (firstVisible) switchTab(firstVisible);
+  // Update R7/R8 label in hero
+  const eyebrow = document.querySelector('.hero-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'FESTIVAL DATA · ' + year.toUpperCase() + ' (' + (year==='r7'?'2025':'2026') + '年度)';
+  const heroH1 = document.querySelector('.hero h1');
+  if (heroH1) {
+    if (year === 'r7') heroH1.innerHTML = '米沢主要イベント、<em>データで読み解く2025年度。</em>';
+    else heroH1.innerHTML = '米沢主要イベント、<em>2026年度（R8）の動き。</em>';
+  }
+}
+document.querySelectorAll('.year-btn:not(.disabled)').forEach(btn => {
+  btn.addEventListener('click', () => switchYear(btn.dataset.year));
+});
+
+Chart.defaults.font.family = '"Hiragino Kaku Gothic ProN","Noto Sans JP","Helvetica Neue",sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#2a2622';
+const COLORS = {shiki:'#3d6e4f',sengoku:'#a01c1c',factory:'#3b6a8f',primary:'#8b1d3f',secondary:'#1e3a5f',accent:'#c9a96e',prevYear:'#cbc4b4'};
+
+new Chart(document.getElementById('chartCompare'), {
+  type:'bar',
+  data:{labels:['上杉まつり','水上花火','OF','戦国花火','雪灯篭'],
+    datasets:[
+      {label:'2025年度',data:[108000,28000,45000,82000,62000],backgroundColor:COLORS.primary,borderRadius:3},
+      {label:'2024年度',data:[98000,26500,37000,69400,58000],backgroundColor:COLORS.prevYear,borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartLodging'), {
+  type:'line',
+  data:{labels:['-3日','-2日','-1日','当日','+1日','+2日','+3日'],
+    datasets:[
+      {label:'上杉まつり',data:[62,71,82,95,88,75,65],borderColor:COLORS.shiki,backgroundColor:COLORS.shiki+'20',tension:0.3},
+      {label:'戦国花火',data:[55,58,68,92,72,60,55],borderColor:COLORS.sengoku,backgroundColor:COLORS.sengoku+'20',tension:0.3},
+      {label:'OF',data:[60,65,75,84,86,82,64],borderColor:COLORS.factory,backgroundColor:COLORS.factory+'20',tension:0.3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartOrigin'), {
+  type:'bar',
+  data:{labels:['山形県内 42%','宮城県 18%','福島県 14%','東京都 11%','関東(他) 8%','海外 3%','その他 4%'],
+    datasets:[{label:'構成比',data:[42,18,14,11,8,3,4],backgroundColor:['#8b1d3f','#a36b7e','#c9a96e','#1e3a5f','#3b6a8f','#3d6e4f','#94a3b8'],borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'%'}}},scales:{x:{beginAtZero:true,max:50,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartGwCategory'), {
+  type:'bar',
+  data:{labels:['米沢市内','置賜内','山形県内(置賜外)','参考(県外)'],
+    datasets:[
+      {label:'2025年',data:[207045,30490,102800,63009],backgroundColor:COLORS.prevYear,borderRadius:3},
+      {label:'2026年',data:[177493,37602,107924,61995],backgroundColor:COLORS.primary,borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+const gwDelta = [['熊野大社（南陽）',9648],['天童温泉',5462],['ダイワロイネットホテル山形',537],['上山',-875],['道の駅ふくしま',-1014],['白布温泉',-1216],['小野川温泉',-1627],['川中島合戦会場',-1952],['白川湖の水没林',-2536],['道の駅米沢',-2771],['米沢駅',-6153],['上杉神社',-15833]].sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+new Chart(document.getElementById('chartGwDelta'), {
+  type:'bar',
+  data:{labels:gwDelta.map(d=>d[0]),
+    datasets:[{label:'前年差',data:gwDelta.map(d=>d[1]),backgroundColor:gwDelta.map(d=>d[1]>=0?'#3d6e4f':'#a01c1c'),borderRadius:2}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'前年差: '+(c.parsed.x>=0?'+':'')+c.parsed.x.toLocaleString()+'人'}}},scales:{x:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString()}}}}
+});
+
+new Chart(document.getElementById('chartGwDaily'), {
+  type:'line',
+  data:{labels:['04/28(火)','04/29(水)','04/30(木)','05/01(金)','05/02(土)','05/03(日)','05/04(月)','05/05(火)'],
+    datasets:[
+      {label:'上杉神社',data:[2947,7803,4934,3353,11820,15646,9096,7202],borderColor:'#8b1d3f',tension:0.3},
+      {label:'米沢駅',data:[3482,2872,3704,4242,5730,8214,4931,5382],borderColor:'#a36b7e',tension:0.3},
+      {label:'道の駅米沢',data:[2527,5180,3464,3912,9827,12064,10191,10478],borderColor:'#c9a96e',tension:0.3},
+      {label:'小野川温泉',data:[729,1291,1289,1126,1621,2241,2951,2361],borderColor:'#0891b2',tension:0.3},
+      {label:'白布温泉',data:[217,97,393,225,557,343,322,744],borderColor:'#7c3aed',tension:0.3},
+      {label:'川中島合戦会場',data:[163,98,68,66,147,1201,60,182],borderColor:'#475569',tension:0.3},
+      {label:'熊野大社（南陽）',data:[706,2221,1290,1283,2326,3975,4485,4697],borderColor:'#3d6e4f',tension:0.3},
+      {label:'白川湖の水没林',data:[576,1583,1551,696,2609,2702,2322,4580],borderColor:'#16a34a',borderDash:[3,3],tension:0.3},
+      {label:'天童温泉',data:[9740,9450,9640,11117,11851,15152,14646,12990],borderColor:'#1e3a5f',borderWidth:2.5,tension:0.3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartGwDow'), {
+  type:'bar',
+  data:{labels:['月','火','水','木','金','土','日'],
+    datasets:[
+      {label:'米沢市内 2025',data:[45582,32466,16045,20149,20716,42442,29645],backgroundColor:'#cbc4b4',stack:'s2025'},
+      {label:'米沢市内 2026',data:[27551,36414,17341,13852,12924,29702,39709],backgroundColor:'#8b1d3f',stack:'s2026'},
+      {label:'置賜内 2025',data:[9777,1900,1763,2801,1566,5983,6700],backgroundColor:'#94a3b8',stack:'s2025'},
+      {label:'置賜内 2026',data:[6807,10559,3804,2841,1979,4935,6677],backgroundColor:'#3d6e4f',stack:'s2026'},
+      {label:'山形県内 2025',data:[25164,11113,11744,10448,12919,15793,15619],backgroundColor:'#e5e7eb',stack:'s2025'},
+      {label:'山形県内 2026',data:[17025,26135,10635,11002,12618,13456,17053],backgroundColor:'#c9a96e',stack:'s2026'}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartGwHourly'), {
+  type:'line',
+  data:{labels:['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23'],
+    datasets:[
+      {label:'米沢駅',data:[0.019,0.008,0.008,0.008,0.008,0.014,0.024,0.054,0.060,0.063,0.070,0.062,0.083,0.066,0.060,0.076,0.061,0.064,0.059,0.031,0.044,0.021,0.016,0.022],borderColor:'#8b1d3f',tension:0.3,pointRadius:2},
+      {label:'道の駅米沢',data:[0.017,0.020,0.021,0.022,0.023,0.023,0.026,0.032,0.038,0.054,0.067,0.062,0.067,0.075,0.085,0.094,0.085,0.058,0.028,0.023,0.020,0.021,0.020,0.018],borderColor:'#c9a96e',tension:0.3,pointRadius:2},
+      {label:'白布温泉',data:[0.030,0.030,0.030,0.030,0.030,0.030,0.030,0.048,0.055,0.033,0.043,0.041,0.064,0.044,0.054,0.083,0.068,0.050,0.035,0.035,0.035,0.035,0.035,0.035],borderColor:'#7c3aed',tension:0.3,pointRadius:2},
+      {label:'白川湖の水没林',data:[0.020,0.020,0.020,0.020,0.020,0.024,0.031,0.040,0.053,0.066,0.068,0.079,0.071,0.074,0.070,0.058,0.049,0.044,0.038,0.035,0.034,0.026,0.021,0.020],borderColor:'#3d6e4f',tension:0.3,pointRadius:2}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y*100).toFixed(1)+'%'}}},scales:{x:{title:{display:true,text:'時刻'}},y:{beginAtZero:true,ticks:{callback:v=>(v*100).toFixed(0)+'%'}}}}
+});
+
+new Chart(document.getElementById('chartShikiByEvent'), {
+  type:'line',
+  data:{labels:['9時','10時','11時','12時','13時','14時','15時','16時','17時','18時','19時','20時'],
+    datasets:[
+      {label:'上杉まつり 5/3',data:[8000,18000,32000,48000,62000,92000,85000,68000,42000,28000,15000,8000],borderColor:COLORS.shiki,backgroundColor:COLORS.shiki+'20',tension:0.3},
+      {label:'水上花火 8/8',data:[1200,2500,3800,5200,7000,9500,12000,15000,22000,28000,35000,28000],borderColor:'#0891b2',tension:0.3},
+      {label:'なせばなる秋まつり 9/27',data:[1500,4200,8500,12500,15800,18000,17200,15500,12000,7500,3500,1500],borderColor:'#c9a96e',tension:0.3},
+      {label:'雪灯篭 2/14',data:[3000,5800,9200,12000,15000,17500,18000,17200,16800,18500,19200,12000],borderColor:COLORS.secondary,tension:0.3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000)+'k人'}}}}
+});
+
+new Chart(document.getElementById('chartShikiTraffic'), {
+  type:'bar',
+  data:{labels:['道の駅米沢','道の駅田沢','道の駅ふくしま'],
+    datasets:[
+      {label:'上杉まつり (5/3)',data:[4850,1980,11049],backgroundColor:COLORS.shiki},
+      {label:'水上花火 (8/8)',data:[2100,980,8500],backgroundColor:'#0891b2'},
+      {label:'なせばなる秋 (9/27)',data:[3200,1450,6800],backgroundColor:'#c9a96e'},
+      {label:'雪灯篭 (2/14)',data:[2350,720,5500],backgroundColor:COLORS.secondary}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'台'}}}}
+});
+
+new Chart(document.getElementById('chartShikiDwell'), {
+  type:'bar',
+  data:{labels:['9時','10時','11時','12時','13時','14時','15時','16時','17時','18時','19時'],
+    datasets:[
+      {label:'上杉神社メッシュ',data:[4200,8500,15200,22000,28500,42000,38500,29000,18000,12000,6500],backgroundColor:COLORS.shiki+'cc'},
+      {label:'伝国の杜メッシュ',data:[2800,5200,9500,14200,18800,24500,21200,16500,10500,7800,4200],backgroundColor:COLORS.shiki+'66'}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>(v/1000)+'k人'}}}}
+});
+
+new Chart(document.getElementById('chartSengokuTimeline'), {
+  type:'line',
+  data:{labels:['11時','12時','13時','14時','15時','16時','17時','18時','18:30','19時','19:30','20時','21時'],
+    datasets:[
+      {label:'会場滞在人口',data:[8000,12000,18500,28000,42000,58000,72000,82000,82000,80000,68000,42000,12000],borderColor:COLORS.sengoku,backgroundColor:COLORS.sengoku+'30',tension:0.3,fill:true,yAxisID:'y'},
+      {label:'流入車両（台/h）',data:[180,420,720,1250,1850,2100,1450,950,200,150,80,1850,2400],borderColor:COLORS.secondary,borderDash:[5,5],tension:0.3,yAxisID:'y1'}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,position:'left'},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}}}}
+});
+
+new Chart(document.getElementById('chartSengokuRoute'), {
+  type:'line',
+  data:{labels:['9時','10時','11時','12時','13時','14時','15時','16時','17時','18時','19時','20時','21時'],
+    datasets:[
+      {label:'道の駅米沢',data:[85,140,220,310,420,520,580,520,380,180,90,150,280],borderColor:'#a01c1c',tension:0.3},
+      {label:'道の駅田沢',data:[40,75,120,180,240,295,320,280,210,110,55,80,165],borderColor:'#c9a96e',tension:0.3},
+      {label:'道の駅ふくしま',data:[280,340,420,510,580,650,720,640,520,310,180,150,140],borderColor:'#1e3a5f',tension:0.3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'台'}}}}
+});
+
+new Chart(document.getElementById('chartSengokuOrigin'), {
+  type:'bar',
+  data:{labels:['山形市','仙台市','福島市','米沢市内','上山市','長井市','東京都','郡山市','白河市','会津若松市'],
+    datasets:[{label:'宿泊者数',data:[620,580,420,380,210,180,165,140,110,95],backgroundColor:'#a01c1c',borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>v+'人'}}}}
+});
+
+// =========== 360°OF 実データ ===========
+const OF_AREAS = ['花角味噌醸造','平山孫兵衛商店','Nitorito','紅花染新田','米沢織物直売所おりじん','粟野商事JUYOKAN','東光小嶋総本店','染織工房わくわく館','近賢織物','第一ほうせい','安部吉','山口織物鷹山堂'];
+const OF_DAILY = {'花角味噌醸造':[94,124,545],'平山孫兵衛商店':[187,225,126],'Nitorito':[187,124,224],'紅花染新田':[94,93,321],'米沢織物直売所おりじん':[32,93,348],'粟野商事JUYOKAN':[94,62,218],'東光小嶋総本店':[94,62,160],'染織工房わくわく館':[55,64,98],'近賢織物':[156,0,32],'第一ほうせい':[32,62,67],'安部吉':[62,31,0],'山口織物鷹山堂':[0,31,32]};
+const OF_PALETTE = ['#1e3a5f','#a36b7e','#8b1d3f','#3b6a8f','#c9a96e','#3d6e4f','#0891b2','#7c3aed','#475569','#a01c1c','#ea7c3a','#16a34a','#94a3b8'];
+
+new Chart(document.getElementById('chartFactoryDaily'), {
+  type:'bar',
+  data:{labels:['9/11(木)','9/12(金)','9/13(土)'],
+    datasets:OF_AREAS.map((a,i)=>({label:a,data:OF_DAILY[a],backgroundColor:OF_PALETTE[i],stack:'s1'}))},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryByArea'), {
+  type:'bar',
+  data:{labels:['花角味噌醸造','平山孫兵衛商店','Nitorito','紅花染新田','米沢織物直売所おりじん','粟野商事JUYOKAN','東光小嶋総本店','染織工房わくわく館','近賢織物','第一ほうせい','安部吉','山口織物鷹山堂'],
+    datasets:[{label:'3日間合計',data:[763,538,535,508,473,374,316,217,188,161,93,63],backgroundColor:OF_PALETTE.slice(1),borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryHourly'), {
+  type:'line',
+  data:{labels:['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23'],
+    datasets:[
+      {label:'休日(9/13)',data:[96,64,64,64,64,64,64,128,382,544,768,770,745,644,543,517,544,480,159,127,127,191,191,159],borderColor:'#8b1d3f',backgroundColor:'#8b1d3f30',tension:0.3,fill:true,pointRadius:2},
+      {label:'平日(9/11-12)',data:[142,157,172,188,141,172,141,157,407,438,392,361,455,374,388,341,313,344,142,94,126,143,126,109],borderColor:'#94a3b8',backgroundColor:'#94a3b820',tension:0.3,fill:true,pointRadius:2,borderDash:[4,3]}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{x:{title:{display:true,text:'時刻'}},y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryPref'), {
+  type:'bar',
+  data:{labels:['山形県 2,757人','福島県 345人','栃木県 33人','茨城県 31人','埼玉県 25人','東京都 12人'],
+    datasets:[{label:'訪問者数',data:[2757,345,33,31,25,12],backgroundColor:'#8b1d3f',borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryCity'), {
+  type:'bar',
+  data:{labels:['米沢市 2,360人','福島市 155人','南陽市 143人','只見町 138人','小国町 134人','高畠町 86人','川西町 35人','鏡石町 35人','那須塩原市 33人','笠間市 31人'],
+    datasets:[{label:'訪問者数',data:[2360,155,143,138,134,86,35,35,33,31],backgroundColor:'#3d6e4f',borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'人'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryDistance'), {
+  type:'bar',
+  data:{labels:['〜500m','〜1km','〜3km','〜5km','〜10km','〜30km','〜50km','〜100km','100km〜'],
+    datasets:[
+      {label:'休日',data:[18.2,11.1,23.7,9.5,4.2,6.2,14.7,6.7,3.6],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'平日',data:[20.3,7.1,47.8,4.8,15.9,1.8,0.0,1.4,1.0],backgroundColor:'#cbc4b4',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryStay'), {
+  type:'bar',
+  data:{labels:['5-10分','10-15分','15-30分','30分-1h','1-2h','2-5h','5-12h','12-24h'],
+    datasets:[
+      {label:'休日',data:[13.1,16.3,15.4,9.0,11.6,14.3,9.9,8.2],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'平日',data:[27.3,11.2,6.3,1.0,6.0,14.2,30.2,3.8],backgroundColor:'#cbc4b4',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryAge'), {
+  type:'bar',
+  data:{labels:['10代以下','20代','30代','40代','50代','60代'],
+    datasets:[
+      {label:'休日',data:[26.8,2.9,5.8,13.9,16.5,26.6],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'平日',data:[6.3,4.9,26.0,16.9,14.1,31.8],backgroundColor:'#cbc4b4',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartFactoryGender'), {
+  type:'bar',
+  data:{labels:['休日','平日'],
+    datasets:[
+      {label:'女性',data:[65.4,70.8],backgroundColor:'#a36b7e',borderRadius:3,stack:'s'},
+      {label:'男性',data:[27.3,29.2],backgroundColor:'#3b6a8f',borderRadius:3,stack:'s'},
+      {label:'不明',data:[7.3,0],backgroundColor:'#cbc4b4',borderRadius:3,stack:'s'}
+    ]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.x.toFixed(1)+'%'}}},scales:{x:{stacked:true,beginAtZero:true,ticks:{callback:v=>v+'%'}},y:{stacked:true}}}
+});
+
+// =========== カメラ車両カウント（実データ） ===========
+const CAM_MONTHS = ['25-04','25-05','25-06','25-07','25-08','25-09','25-10','25-11','25-12','26-01','26-02','26-03'];
+
+new Chart(document.getElementById('chartCamMonthly'), {
+  type:'line',
+  data:{labels:CAM_MONTHS,
+    datasets:[
+      {label:'道の駅ふくしま',data:[89634,91124,113173,62685,58410,102281,72206,74458,49156,43574,59056,81075],borderColor:'#a01c1c',backgroundColor:'#a01c1c20',tension:0.3,borderWidth:2},
+      {label:'道の駅米沢',data:[734,1371,2530,4069,1321,29612,45603,77836,46128,43585,60672,89162],borderColor:'#8b1d3f',backgroundColor:'#8b1d3f20',tension:0.3,borderWidth:2},
+      {label:'上杉城史苑',data:[52174,47790,64954,18436,0,0,0,0,0,0,0,0],borderColor:'#1e3a5f',backgroundColor:'#1e3a5f20',tension:0.3,borderWidth:2,borderDash:[4,3]},
+      {label:'道の駅田沢',data:[3928,2235,355,484,408,2333,4102,4064,1202,48,633,2395],borderColor:'#c9a96e',backgroundColor:'#c9a96e20',tension:0.3,borderWidth:2}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString()+'台'}}}}
+});
+
+new Chart(document.getElementById('chartCamFukushima'), {
+  type:'bar',
+  data:{labels:CAM_MONTHS,
+    datasets:[{label:'道の駅ふくしま',data:[89634,91124,113173,62685,58410,102281,72206,74458,49156,43574,59056,81075],backgroundColor:'#a01c1c',borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k台'}}}}
+});
+
+new Chart(document.getElementById('chartCamYonezawa'), {
+  type:'bar',
+  data:{labels:CAM_MONTHS,
+    datasets:[{label:'道の駅米沢',data:[734,1371,2530,4069,1321,29612,45603,77836,46128,43585,60672,89162],backgroundColor:'#8b1d3f',borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k台'}}}}
+});
+
+new Chart(document.getElementById('chartCamReturned'), {
+  type:'bar',
+  data:{labels:CAM_MONTHS,
+    datasets:[
+      {label:'道の駅米沢',data:[28,31,30,31,8,16,31,30,27,31,28,31],backgroundColor:'#8b1d3f',borderRadius:2},
+      {label:'上杉城史苑',data:[30,31,30,16,0,0,0,0,0,0,0,0],backgroundColor:'#1e3a5f',borderRadius:2},
+      {label:'道の駅田沢',data:[30,31,6,19,30,30,31,30,27,12,25,31],backgroundColor:'#c9a96e',borderRadius:2},
+      {label:'道の駅ふくしま',data:[30,31,30,14,16,30,31,30,31,31,28,31],backgroundColor:'#a01c1c',borderRadius:2}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+'日返却'}}},scales:{y:{beginAtZero:true,max:31,ticks:{callback:v=>v+'日'}}}}
+});
+
+// =========== 宿泊データ（じゃらん R8 GW） ===========
+new Chart(document.getElementById('chartLodgeBalance'), {
+  type:'bar',
+  data:{labels:['取扱額(万円)','人泊数','人泊単価(千円)'],
+    datasets:[
+      {label:'実績(2026 GW)',data:[2827,2014,14.035],backgroundColor:'#8b1d3f',borderRadius:3,yAxisID:'y'},
+      {label:'比較年(2025 GW)',data:[2220,1702,13.042],backgroundColor:'#cbc4b4',borderRadius:3,yAxisID:'y'}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>{const u=c.dataIndex===0?'万円':c.dataIndex===1?'人':'千円';return c.dataset.label+': '+c.parsed.y.toLocaleString()+u;}}}},scales:{y:{beginAtZero:true}}}
+});
+
+new Chart(document.getElementById('chartLodgeType'), {
+  type:'doughnut',
+  data:{labels:['旅館 1,779万円(63%)','ホテル 1,007万円(36%)','ペンション 41万円(1.5%)'],
+    datasets:[{data:[1779,1007,41],backgroundColor:['#8b1d3f','#3b6a8f','#c9a96e']}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+});
+
+new Chart(document.getElementById('chartLodgeOrigin'), {
+  type:'bar',
+  data:{labels:['東京都 17%/18%','宮城県 11%/12%','埼玉県 9%/9%','神奈川県 9%/8%','千葉県 7%/8%','山形県 6%/2%','福島県 4%/12%','茨城県 4%/7%','新潟県 4%/4%','秋田県 3%/1%','栃木県 2%/2%'],
+    datasets:[
+      {label:'自地域 実績',data:[17,11,9,9,7,6,4,4,4,3,2],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'他地域 実績',data:[18,12,9,8,8,2,12,7,4,1,2],backgroundColor:'#3b6a8f',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+'%'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartLodgeLead'), {
+  type:'doughnut',
+  data:{labels:['当日 5%','前日 4%','2日前','3〜7日前 13%','8〜14日前 14%','15〜30日前 22%','31〜60日前 23%','61日以前 19%'],
+    datasets:[{data:[5,4,1,13,14,22,23,19],backgroundColor:['#a01c1c','#c14868','#a36b7e','#c9a96e','#d4a64a','#3d6e4f','#1e3a5f','#475569']}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+});
+
+new Chart(document.getElementById('chartLodgeAge'), {
+  type:'bar',
+  data:{labels:['10代','20代','30代','40代','50代','60代以上','不明'],
+    datasets:[
+      {label:'自地域 実績',data:[1,8,15,25,33,18,2],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'他地域 実績',data:[0,11,18,26,27,16,1],backgroundColor:'#3b6a8f',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+'%'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('chartLodgeRepeat'), {
+  type:'bar',
+  data:{labels:['自地域 実績','自地域 前年','他地域 実績','他地域 前年'],
+    datasets:[
+      {label:'リピート',data:[21,24,26,29],backgroundColor:'#8b1d3f',stack:'s'},
+      {label:'新規',data:[79,76,74,71],backgroundColor:'#cbc4b4',stack:'s'}
+    ]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.x+'%'}}},scales:{x:{stacked:true,beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true}}}
+});
+
+new Chart(document.getElementById('chartLodgeGroup'), {
+  type:'bar',
+  data:{labels:['1人 男性','1人 女性','2人 男女','2人 男性のみ','2人 女性のみ','グループ 男女混合','グループ 男性のみ','グループ 女性のみ','家族'],
+    datasets:[
+      {label:'自地域',data:[30.3,5.3,39.3,4.1,1.6,9.8,2.0,0.3,6.7],backgroundColor:'#8b1d3f',borderRadius:3},
+      {label:'他地域',data:[18.7,4.2,37.4,3.3,3.2,13.8,1.9,0.7,16.8],backgroundColor:'#3b6a8f',borderRadius:3}
+    ]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.x+'%'}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+// =========== OpenStreetMap (Leaflet) ===========
+let osmMapInstance = null;
+function initOsmMap() {
+  if (typeof L === 'undefined') return;
+  const el = document.getElementById('osm-map');
+  if (!el) return;
+  if (osmMapInstance) { osmMapInstance.invalidateSize(); return; }
+  const map = L.map('osm-map', {scrollWheelZoom:false}).setView([37.892, 140.155], 11);
+  osmMapInstance = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  function pin(color){return L.divIcon({className:'',html:'<div style="background:'+color+';width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>',iconSize:[18,18],iconAnchor:[9,9]});}
+  function pinStar(color){return L.divIcon({className:'',html:'<div style="background:'+color+';width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;color:white;font-weight:700;">★</div>',iconSize:[24,24],iconAnchor:[12,12]});}
+
+  // カメラ拠点
+  const cameras = [
+    {pos:[37.8862,140.1591],name:'道の駅米沢',sub:'米沢市川井（米沢中央IC近接）',data:'年間 402,623台 ／ 9/15以降本格計測'},
+    {pos:[37.8470,140.1175],name:'道の駅田沢',sub:'米沢市口田沢（南方）',data:'年間 22,187台 ／ 南部ゲートウェイ'},
+    {pos:[37.9123,140.1099],name:'上杉城史苑',sub:'米沢市丸の内（上杉神社隣接）',data:'年間 183,354台（4-7月のみ・要復旧）'},
+    {pos:[37.8232,140.4053],name:'道の駅ふくしま',sub:'福島県福島市大笹生',data:'年間 896,832台 ／ 県境ゲートウェイ'}
+  ];
+  cameras.forEach(c => L.marker(c.pos,{icon:pin('#a01c1c')}).addTo(map).bindPopup('<span class="badge-cam">CAM</span><strong>'+c.name+'</strong><div class="meta">'+c.sub+'</div><div style="margin-top:4px">'+c.data+'</div>'));
+
+  // 祭り会場・観光資源
+  const festivals = [
+    {pos:[37.9116,140.1106],name:'上杉神社・松が岬公園',sub:'上杉まつり（4/29-5/3）／雪灯篭まつり（2/14-15）'},
+    {pos:[37.9272,140.1300],name:'米沢市営野球場',sub:'よねざわ戦国花火大会（10/11）'},
+    {pos:[37.9080,140.1180],name:'米沢織エリア（中心市街地）',sub:'360°オープンファクトリー会場（9/11-13）'},
+    {pos:[37.8950,140.1430],name:'松川河川敷',sub:'米沢納涼水上花火大会（8/8）'}
+  ];
+  festivals.forEach(f => L.marker(f.pos,{icon:pinStar('#c9a96e')}).addTo(map).bindPopup('<span class="badge-fes">FES</span><strong>'+f.name+'</strong><div class="meta">'+f.sub+'</div>'));
+
+  // ハブ施設
+  const hubs = [
+    {pos:[37.9088,140.1346],name:'米沢駅',sub:'JR奥羽本線・山形新幹線'},
+    {pos:[37.8830,140.1620],name:'米沢中央IC',sub:'東北中央自動車道'}
+  ];
+  hubs.forEach(h => L.marker(h.pos,{icon:pin('#3b6a8f')}).addTo(map).bindPopup('<strong>'+h.name+'</strong><div class="meta">'+h.sub+'</div>'));
+
+  // 全マーカーが収まるように調整
+  const allPoints = [...cameras,...festivals,...hubs].map(p => p.pos);
+  map.fitBounds(allPoints, {padding:[40,40]});
+}
+// 取得地点タブが表示された時に初期化
+document.addEventListener('DOMContentLoaded', () => {
+  // Init when locations tab clicked
+  document.querySelectorAll('.tab[data-target="locations"]').forEach(t => {
+    t.addEventListener('click', () => setTimeout(initOsmMap, 50));
+  });
+  // Also init on load if locations is default (it's not, but just in case)
+  if (document.getElementById('panel-locations') && document.getElementById('panel-locations').style.display !== 'none') {
+    initOsmMap();
+  }
+});
+
+// =========== SNS反響分析（DUMMY） ===========
+const SNS_DATA = {
+  uesugi: {
+    name: '米沢上杉まつり', period: '2025/4/29〜5/3',
+    posts: 187, imp: 142000, posPct: 71, posCnt: 133, neuCnt: 42, negCnt: 12,
+    topEng: 'X @yamagata_traveler', engCount: 'いいね 1,847',
+    words: [['川中島合戦',45],['上杉',42],['米沢',40],['武者行列',32],['武田',28],['軍勢',22],['騎馬',20],['合戦',18],['鎧',16],['兜',15],['武将隊',14],['上杉謙信',13],['伝統',12],['迫力',11],['桜',11],['GW',10],['観光',10],['天気',9],['晴',9],['屋台',8],['米沢牛',8],['日本酒',7],['伝国の杜',7],['上杉神社',7],['ボランティア',6],['毘沙門天',6],['行列',6],['興奮',5],['泣ける',5],['素晴らしい',5],['また来年',5],['歴史',4],['ステージ',4],['迫力満点',4],['親子',4],['SNS映え',4],['アクセス',3],['駐車場',3],['混雑',3],['熱気',3],['川中島',3]],
+    hashtags: [['#米沢上杉まつり',187],['#川中島合戦',98],['#米沢',76],['#上杉まつり',54],['#山形旅行',42],['#上杉謙信',38],['#GW2025',31],['#武者行列',28],['#米沢牛',24],['#山形',22]],
+    sentText: 'ポジティブが圧倒的多数。「迫力」「感動」「また来年」等のリピート意向が多く確認。ネガティブは少数だが「混雑」「駐車場」関連の声あり',
+    timeline: [3,5,8,12,18,42,98,142,187,98,42,18,8,5,3,2,1],
+    timelineLabels: ['4/22','4/24','4/26','4/28','4/29','4/30','5/1','5/2','5/3','5/4','5/5','5/7','5/9','5/11','5/13'],
+    mood: 'positive',
+    positiveThemes: ['川中島合戦の「迫力」「鳥肌」「興奮」というワードが多数','武者行列のビジュアル映え。鎧兜・騎馬隊への称賛','上杉謙信公・毘沙門天信仰への共感','「また来年」というリピート意向の発露が顕著'],
+    negativeThemes: ['駐車場の確保に困った旨の投稿が一部','5/3当日の混雑への言及'],
+    notable: ['@yamagata_traveler の投稿が1,847いいねで拡散の起点','GW中盤（5/2-5/3）に投稿が集中、ピーク日は5/3の合戦本番'],
+    topPosts: [
+      {plat:'X',handle:'@yamagata_traveler',text:'川中島合戦の迫力すごい...！毎年見てるけど今年の武者行列は格別。米沢の歴史を肌で感じる5日間でした #米沢上杉まつり #川中島合戦',likes:1847,rt:412},
+      {plat:'IG',handle:'@yonezawa_local',text:'晴天に恵まれた上杉まつり。鎧兜の武者たちが市内を練り歩く姿は圧巻です。来年も絶対行く！',likes:892,rt:0},
+      {plat:'X',handle:'@samurai_lover',text:'上杉謙信公の毘沙門天信仰の話を聞けて感動。米沢に来て本当によかった #米沢 #上杉謙信 #米沢上杉まつり',likes:643,rt:178}
+    ]
+  },
+  suijou: {
+    name: '米沢納涼水上花火大会', period: '2025/8/8',
+    posts: 92, imp: 68000, posPct: 76, posCnt: 70, neuCnt: 18, negCnt: 4,
+    topEng: 'IG @hanabi_japan', engCount: 'いいね 2,103',
+    words: [['花火',58],['米沢',45],['松川',38],['水面',32],['夏',28],['浴衣',22],['夜空',18],['きれい',16],['涼しい',14],['夏祭り',13],['デート',12],['反射',12],['川面',11],['ナイアガラ',10],['スターマイン',9],['屋台',9],['かき氷',8],['ビール',7],['橋',7],['河川敷',6],['米沢牛',6],['夏休み',6],['家族',5],['カップル',5],['打ち上げ',5],['迫力',5],['歓声',4],['芋煮',4],['花火大会',4],['見応え',4]],
+    hashtags: [['#米沢花火',92],['#米沢納涼水上花火大会',61],['#花火大会2025',45],['#米沢',38],['#松川',24],['#山形',22],['#夏祭り',18],['#浴衣',12],['#夜空',9],['#山形旅行',8]],
+    sentText: '夏の風物詩として高評価。水面に映る花火の写真投稿が多数。ネガティブはアクセス・駐車場関連が中心',
+    timeline: [1,2,3,4,8,12,18,28,92,42,18,8,4,2,1,1,0],
+    timelineLabels: ['7/25','7/27','7/29','7/31','8/2','8/4','8/6','8/7','8/8','8/9','8/11','8/13','8/15','8/17','8/19'],
+    mood: 'positive',
+    positiveThemes: ['松川の水面に花火が映る幻想的な光景に高評価','夏祭り・浴衣・デートシーンとしての写真投稿','米沢牛・かき氷など屋台グルメの言及'],
+    negativeThemes: ['アクセス・駐車場関連の不満','河川敷の足元の悪さへの言及'],
+    notable: ['IG @hanabi_japan が2,103いいねで全国的拡散','8/8当日のリアルタイム投稿率が極めて高い'],
+    topPosts: [
+      {plat:'IG',handle:'@hanabi_japan',text:'松川河川敷の水面に花火が映る幻想的な光景。米沢納涼水上花火大会、東北の隠れた名スポットです',likes:2103,rt:0},
+      {plat:'X',handle:'@yonezawa_summer',text:'今夜の米沢納涼花火、最高だった！米沢牛串焼きながら浴衣で観覧。次は誰と来ようかな笑 #米沢花火 #夏祭り',likes:734,rt:124}
+    ]
+  },
+  factory: {
+    name: '360°よねざわオープンファクトリー', period: '2025/9/11〜13',
+    posts: 64, imp: 38000, posPct: 84, posCnt: 54, neuCnt: 8, negCnt: 2,
+    topEng: 'IG @kogei_lover', engCount: 'いいね 1,486',
+    words: [['米沢織',38],['工場',32],['体験',28],['機織り',24],['ものづくり',22],['伝統',18],['発酵',16],['味噌',14],['日本酒',13],['染め',12],['紅花',12],['職人',11],['見学',10],['東光酒蔵',9],['花角味噌',9],['歴史',8],['手仕事',8],['素敵',7],['Nitorito',7],['記念品',6],['ワークショップ',6],['購入',5],['ものづくりの街',5],['工房',5],['女性',5],['親子',5],['めっちゃ良い',4],['また来たい',4],['カフェ',4],['子供連れ',4]],
+    hashtags: [['#360OF',64],['#オープンファクトリー',42],['#米沢',38],['#米沢織',31],['#ものづくり',28],['#山形',18],['#発酵',14],['#工場見学',12],['#伝統工芸',10],['#山形旅行',8]],
+    sentText: 'ポジティブ率84%と非常に高い。「体験」「ものづくり」「職人」関連のキーワードが上位。リピート意向強し',
+    timeline: [0,1,2,2,3,4,8,18,38,64,28,8,3,1,0,0,0],
+    timelineLabels: ['8/28','8/30','9/1','9/3','9/5','9/7','9/9','9/10','9/11','9/12','9/13','9/14','9/16','9/18','9/20'],
+    mood: 'positive',
+    positiveThemes: ['「米沢織」「機織り体験」「職人」への称賛が中心','ものづくりの街・米沢のブランドとしての評価','家族連れ・親子参加への満足度が高い','リピート意向「また来たい」の比率が高い'],
+    negativeThemes: ['アクセス分散の不便さに少数の言及','平日と土曜で混雑差が大きい点'],
+    notable: ['東北地域メディア（FBP・SNS）からの引用が増加','海外（ハワイ等）からの来訪コメントも観測'],
+    topPosts: [
+      {plat:'IG',handle:'@kogei_lover',text:'米沢織の機織り体験、想像以上に難しくて職人さんへの尊敬が増しました。家族で来て本当によかった #米沢織 #360OF',likes:1486,rt:0},
+      {plat:'X',handle:'@yonezawa_textile',text:'米沢のものづくりの街としての底力を感じた3日間。22社が同時開放するOFは全国的にも稀有な取り組み',likes:512,rt:178}
+    ]
+  },
+  naseba: {
+    name: 'なせばなる秋まつり', period: '2025/9/27〜28',
+    posts: 73, imp: 52000, posPct: 78, posCnt: 57, neuCnt: 12, negCnt: 4,
+    topEng: 'X @okitama_grm', engCount: 'いいね 943',
+    words: [['上杉',32],['鷹山',28],['米沢',26],['秋',24],['なせばなる',22],['ステージ',18],['伝国の杜',16],['松が岬',14],['グルメ',13],['米沢牛',12],['芋煮',10],['屋台',9],['ライブ',9],['鷹山公',8],['観光',8],['天気',7],['秋晴れ',7],['紅葉',6],['ボランティア',6],['ジャズ',5],['和太鼓',5],['楽しい',5],['家族連れ',4],['カップル',4],['歴史',4],['置賜',4],['日本酒',4],['名物',3],['もみじ',3],['冷麺',3]],
+    hashtags: [['#なせばなる秋まつり',73],['#米沢',54],['#上杉鷹山',38],['#秋まつり',24],['#山形',18],['#置賜',14],['#米沢グルメ',12],['#秋晴れ',9],['#山形旅行',8],['#ステージ',5]],
+    sentText: '秋の風物詩として安定した評価。「上杉鷹山公」関連の投稿が多く、地域の歴史への関心が見られる',
+    timeline: [0,0,1,2,3,5,8,18,32,73,42,12,4,2,1],
+    timelineLabels: ['9/13','9/15','9/17','9/19','9/21','9/23','9/25','9/26','9/27','9/28','9/29','10/1','10/3','10/5','10/7'],
+    mood: 'positive',
+    positiveThemes: ['上杉鷹山公の「なせばなる」精神への共感','芋煮鍋・米沢牛のグルメ評価','秋晴れの天候と紅葉の景観','ステージプログラムの幅広さ'],
+    negativeThemes: ['宣伝が他祭りに比べて少ない（認知不足）旨の声','夕方以降のステージプログラム拡充希望'],
+    notable: ['置賜エリアからの来訪者比率が高い（地域密着型）','高齢層からの「上杉文化への敬意」コメントが目立つ'],
+    topPosts: [
+      {plat:'X',handle:'@okitama_grm',text:'なせばなる秋まつり、今年も行ってきた。芋煮鍋食べながらステージ見るのが至福。米沢の秋の楽しみ #なせばなる秋まつり',likes:943,rt:212},
+      {plat:'IG',handle:'@yonezawa_kanko',text:'上杉鷹山公の「なせばなる」精神、米沢の街全体で感じられる週末でした',likes:421,rt:0}
+    ]
+  },
+  sengoku: {
+    name: 'よねざわ戦国花火大会', period: '2025/10/11',
+    posts: 312, imp: 285000, posPct: 82, posCnt: 256, neuCnt: 42, negCnt: 14,
+    topEng: 'X @hanabi_otaku', engCount: 'いいね 8,234',
+    words: [['花火',98],['戦国',82],['ドローン',72],['米沢',68],['武将',54],['演武',48],['迫力',42],['上杉',38],['謙信',32],['毘沙門',28],['8000発',24],['市営野球場',22],['シンクロ',20],['映像美',18],['200機',16],['鳥肌',16],['感動',15],['号泣',14],['泣いた',12],['歴史',12],['BGM',11],['ドラマ',10],['総合エンタメ',9],['世界初',8],['圧巻',8],['観た価値あり',7],['素晴らしい',7],['大盛況',6],['熱狂',6],['日本酒',5],['寒い',5],['2万人',5],['チケット',4],['また見たい',4],['第3回',4]],
+    hashtags: [['#よねざわ戦国花火大会',312],['#戦国花火',218],['#米沢',164],['#花火大会2025',124],['#ドローンショー',98],['#上杉謙信',76],['#山形',62],['#花火',54],['#武将',38],['#山形旅行',32]],
+    sentText: '6イベント中最大の反響。ドローン×花火×戦国演武の融合に対する「鳥肌」「感動」コメント多数。前年比で投稿数3倍',
+    timeline: [3,8,12,24,42,68,98,142,185,312,142,68,32,18,8,4,2],
+    timelineLabels: ['9/27','9/29','10/1','10/3','10/5','10/7','10/9','10/10','10/10','10/11','10/12','10/14','10/16','10/18','10/20'],
+    mood: 'positive',
+    positiveThemes: ['ドローン×花火×戦国演武の融合に「世界初」「鳥肌」コメント','毘沙門天の文字が空に浮かぶ演出への感動','8,000発+ドローン200機のスケールへの驚嘆','前年比3倍の投稿数で SNS 上での話題性が突出'],
+    negativeThemes: ['帰路の渋滞への言及','チケット販売の早期完売を惜しむ声','会場の寒さへの言及'],
+    notable: ['@hanabi_otaku が8,234いいねで6イベント中最大の拡散','@drone_show_japan の業界専門家からの言及で認知拡大','10/11当日と前日の投稿が集中、長期的拡散も継続'],
+    topPosts: [
+      {plat:'X',handle:'@hanabi_otaku',text:'戦国花火大会、想像の遥か上を行く演出だった。ドローン200機で武将の顔と家紋が空に浮かんで、そこに花火が連動する。世界初の戦国エンタメ #よねざわ戦国花火大会',likes:8234,rt:2104},
+      {plat:'IG',handle:'@drone_show_japan',text:'ドローンショーと花火のシンクロ、技術的にもエンタメ的にも凄い。これを米沢で見られるのが奇跡',likes:3782,rt:0},
+      {plat:'X',handle:'@uesugi_lover',text:'毘沙門天の文字が空に浮かんだ瞬間、本気で泣きました。上杉謙信公への愛が試される花火大会',likes:1923,rt:512}
+    ]
+  },
+  yukidouro: {
+    name: '上杉雪灯篭まつり', period: '2026/2/14〜15',
+    posts: 124, imp: 89000, posPct: 80, posCnt: 99, neuCnt: 18, negCnt: 7,
+    topEng: 'IG @snow_japan', engCount: 'いいね 3,402',
+    words: [['雪',62],['灯篭',58],['ろうそく',38],['米沢',34],['冬',28],['幻想',24],['上杉神社',20],['松が岬',18],['雪国',16],['寒い',15],['暖かい',14],['キャンドル',13],['雪原',12],['夜',11],['祈り',10],['静寂',10],['神秘',9],['雪化粧',8],['観光',8],['夫婦',7],['カップル',7],['子供',6],['ライトアップ',6],['屋台',6],['芋煮',5],['日本酒',5],['暖をとる',5],['雪ミク',4],['イルミネーション',4],['幻想的',4]],
+    hashtags: [['#上杉雪灯篭まつり',124],['#米沢',82],['#雪灯篭',68],['#冬の山形',42],['#雪国',32],['#幻想的',28],['#山形旅行',24],['#上杉神社',18],['#日本の冬',12],['#山形',10]],
+    sentText: '幻想的な雪×灯火の写真投稿が中心。「冬の絶景」として高評価。寒さへのネガティブも一定数あり',
+    timeline: [0,1,2,4,8,18,32,68,124,68,32,12,4,2,1],
+    timelineLabels: ['1/31','2/2','2/4','2/6','2/8','2/10','2/12','2/13','2/14','2/15','2/16','2/18','2/20','2/22','2/24'],
+    mood: 'positive',
+    positiveThemes: ['雪原に灯る何百もの灯火の幻想的な光景','「神秘」「日本の冬」「一生の思い出」というワード','夫婦・カップルでの来訪シーンが多数','IG映えコンテンツとして機能'],
+    negativeThemes: ['寒さへの言及（防寒対策が必要との声）','屋台営業時間が短いとの指摘'],
+    notable: ['IG @snow_japan が3,402いいねで写真主体の拡散','インバウンド層からの言及が他祭りより多い傾向'],
+    topPosts: [
+      {plat:'IG',handle:'@snow_japan',text:'米沢の雪灯篭まつり、写真では伝わらない神秘さ。雪原に何百もの灯火が灯る光景は一生の思い出 #上杉雪灯篭まつり #雪国',likes:3402,rt:0},
+      {plat:'X',handle:'@winter_traveler',text:'寒さ覚悟で行ったけど、屋台の芋煮で温まりながら見る雪灯篭は格別。米沢の冬は深いです',likes:1247,rt:284}
+    ]
+  }
+};
+
+const SNS_PALETTE = ['#8b1d3f','#1e3a5f','#3d6e4f','#c9a96e','#a01c1c','#3b6a8f','#7c3aed','#0891b2','#a36b7e','#475569'];
+
+function renderSnsBlock(eventKey, ctx) {
+  const d = SNS_DATA[eventKey];
+  if (!d) return;
+  const $ = (id) => document.getElementById(`${ctx}-sns-${id}`);
+  // KPI
+  if ($('posts')) $('posts').innerHTML = d.posts.toLocaleString() + '<span class="kpi-unit">件</span>';
+  if ($('period')) $('period').textContent = d.period;
+  if ($('imp')) $('imp').innerHTML = d.imp.toLocaleString() + '<span class="kpi-unit">回</span>';
+  if ($('pos')) $('pos').innerHTML = d.posPct + '<span class="kpi-unit">%</span>';
+  if ($('sentiment-meta')) $('sentiment-meta').textContent = `ポジ${d.posCnt} / 中立${d.neuCnt} / ネガ${d.negCnt}`;
+  if ($('top-eng')) $('top-eng').textContent = d.topEng;
+  if ($('top-platform')) $('top-platform').textContent = d.engCount;
+  // Wordcloud
+  const wcEl = document.getElementById(`${ctx}SnsWordcloud`);
+  if (typeof WordCloud !== 'undefined' && wcEl) {
+    wcEl.width = wcEl.parentElement.clientWidth;
+    wcEl.height = wcEl.parentElement.clientHeight;
+    WordCloud(wcEl, {
+      list: d.words,
+      gridSize: 8,
+      weightFactor: 4,
+      fontFamily: '"Hiragino Mincho ProN","Yu Mincho",serif',
+      color: (word, weight) => SNS_PALETTE[Math.min(Math.floor((d.words[0][1] - weight) / 4), SNS_PALETTE.length - 1)],
+      backgroundColor: '#fdfaf4',
+      rotateRatio: 0.2,
+      shuffle: false
+    });
+  }
+  // Hashtags
+  if ($('hashtags')) $('hashtags').innerHTML = d.hashtags.map(([tag,cnt]) => `<span class="tag-pill">${tag}<span class="count">${cnt}</span></span>`).join(' ');
+  // Sentiment bar
+  const total = d.posCnt + d.neuCnt + d.negCnt;
+  if ($('sentiment-bar')) {
+    const posW = (d.posCnt/total*100).toFixed(0);
+    const neuW = (d.neuCnt/total*100).toFixed(0);
+    const negW = (d.negCnt/total*100).toFixed(0);
+    $('sentiment-bar').innerHTML =
+      `<div class="sentiment-pos" style="flex:${d.posCnt}">ポジ ${posW}%</div>` +
+      `<div class="sentiment-neu" style="flex:${d.neuCnt}">中立 ${neuW}%</div>` +
+      `<div class="sentiment-neg" style="flex:${d.negCnt}">ネガ ${negW}%</div>`;
+  }
+  if ($('sentiment-text')) $('sentiment-text').textContent = d.sentText;
+  // Timeline
+  const tlEl = document.getElementById(`${ctx}SnsTimeline`);
+  if (tlEl) {
+    if (window[`${ctx}TimelineChart`]) window[`${ctx}TimelineChart`].destroy();
+    window[`${ctx}TimelineChart`] = new Chart(tlEl, {
+      type: 'bar',
+      data: {labels: d.timelineLabels, datasets: [{label: '日別投稿数', data: d.timeline, backgroundColor: '#8b1d3f', borderRadius: 2}]},
+      options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, ticks: {callback: v => v + '件'}}}}
+    });
+  }
+  // SNS要約カード
+  if ($('summary')) {
+    const moodClass = d.mood === 'positive' ? 'mood-positive' : d.mood === 'negative' ? 'mood-negative' : 'mood-mixed';
+    const moodLabel = d.mood === 'positive' ? '◉ 全体的にポジティブ' : d.mood === 'negative' ? '◉ ネガティブ傾向' : '◉ ポジ/ネガ混在';
+    $('summary').innerHTML = `
+      <div class="sns-mood-badge ${moodClass}">${moodLabel}</div>
+      <div class="sns-summary-block">
+        <div class="sns-summary-label"><span class="ico">✓</span>ポジティブ反応のテーマ</div>
+        <ul>${d.positiveThemes.map(t => `<li>${t}</li>`).join('')}</ul>
+      </div>
+      <div class="sns-summary-block">
+        <div class="sns-summary-label"><span class="ico">⚠</span>ネガティブ・課題のテーマ</div>
+        <ul>${d.negativeThemes.map(t => `<li>${t}</li>`).join('')}</ul>
+      </div>
+      <div class="sns-summary-block">
+        <div class="sns-summary-label"><span class="ico">★</span>注目された動き</div>
+        <ul>${d.notable.map(t => `<li>${t}</li>`).join('')}</ul>
+      </div>
+    `;
+  }
+  // Top posts
+  if ($('top-posts')) {
+    $('top-posts').innerHTML = d.topPosts.map(p =>
+      `<div class="top-post"><div class="top-post-meta"><span class="platform-${p.plat==='X'?'x':'ig'}">${p.plat}</span> ${p.handle}</div><div class="top-post-text">${p.text}</div><div class="top-post-stats"><span>♥ ${p.likes.toLocaleString()}</span>${p.rt?'<span>🔁 '+p.rt.toLocaleString()+'</span>':''}</div></div>`
+    ).join('');
+  }
+  // Update command
+  const eventIdMap = {uesugi:'uesugi-matsuri-2025',suijou:'suijou-hanabi-2025',factory:'360-of-2025',naseba:'naseba-aki-2025',sengoku:'sengoku-hanabi-2025',yukidouro:'yukidouro-2026'};
+  if ($('cmd')) {
+    const cmd = `/sns-update ${eventIdMap[eventKey]}`;
+    $('cmd').innerHTML = `${cmd} <span class="copy-icon">⧉</span>`;
+    $('cmd').dataset.copy = cmd;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.sns-event-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sns-event-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSnsEvent(btn.dataset.event);
+    });
+  });
+  // Init SNS rendering when event tabs are opened
+  document.querySelectorAll('.tab[data-target="shiki"]').forEach(t => {
+    t.addEventListener('click', () => setTimeout(() => renderSnsBlock('uesugi', 'shiki'), 100));
+  });
+  document.querySelectorAll('.tab[data-target="sengoku"]').forEach(t => {
+    t.addEventListener('click', () => setTimeout(() => renderSnsBlock('sengoku', 'sengoku'), 100));
+  });
+  document.querySelectorAll('.tab[data-target="factory"]').forEach(t => {
+    t.addEventListener('click', () => setTimeout(() => renderSnsBlock('factory', 'factory'), 100));
+  });
+  // Sub-event selector for 四季のまつり SNS section
+  document.querySelectorAll('.shiki-sns-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.shiki-sns-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSnsBlock(btn.dataset.event, 'shiki');
+    });
+  });
+  // Copy-to-clipboard for Claude Code commands
+  document.querySelectorAll('[data-copy]').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      const text = el.dataset.copy;
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = el.innerHTML;
+        if (el.classList.contains('cc-copy-btn')) {
+          el.textContent = 'COPIED ✓';
+          el.classList.add('copied');
+          setTimeout(() => { el.textContent = 'COPY'; el.classList.remove('copied'); }, 1500);
+        } else {
+          el.innerHTML = '✓ コピーしました';
+          setTimeout(() => { el.innerHTML = original; }, 1500);
+        }
+      } catch (err) {
+        console.error('Copy failed:', err);
+      }
+    });
+  });
+});
+
+// =========== Ideas (改善案) loader ===========
+const SRC_BADGE_LABEL = {sns:'SNS', agoop:'人流', camera:'カメラ', lodging:'宿泊', analysis:'横断分析'};
+const PRIO_LABEL = {high:'HIGH', medium:'MEDIUM', low:'LOW'};
+
+async function loadIdeas(eventId, ctx) {
+  const grid = document.getElementById(`${ctx}-ideas-grid`);
+  if (!grid) return;
+  // Already loaded?
+  if (grid.dataset.loaded === eventId) return;
+  try {
+    const r = await fetch(`./data/events/ideas-${eventId}.json`);
+    if (!r.ok) throw new Error('Not found');
+    const data = await r.json();
+    renderIdeas(data, ctx);
+    grid.dataset.loaded = eventId;
+  } catch(e) {
+    console.warn(`Ideas not loaded for ${eventId}:`, e.message);
+    if (grid.children.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--paper);border-radius:6px;border:1px dashed var(--border)">未生成です。Claude Code で<code style="background:#fff;padding:2px 6px;border-radius:3px;margin:0 4px">/ideas-generate ' + eventId + '</code>を実行してください。</div>';
+    }
+  }
+}
+
+function renderIdeas(data, ctx) {
+  // Update summary
+  const summaryEl = document.getElementById(`${ctx}-ideas-summary`);
+  if (summaryEl && data.summary) summaryEl.textContent = data.summary;
+
+  // Meta bar (last updated + data sources)
+  const metaEl = document.getElementById(`${ctx}-ideas-meta`);
+  if (metaEl) {
+    const updated = new Date(data.generated_at).toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const sources = (data.data_sources_used || []).map(s => `<span class="source-badge ${s}">${SRC_BADGE_LABEL[s]||s}</span>`).join('');
+    metaEl.innerHTML = `<span class="updated">📅 最終更新: ${updated}</span><span class="sources"><span style="font-weight:700;color:var(--text);margin-right:4px">統合データ:</span>${sources}</span><span style="margin-left:auto">提案数: <strong style="color:var(--primary)">${data.ideas.length}</strong></span>`;
+  }
+
+  // Grid
+  const grid = document.getElementById(`${ctx}-ideas-grid`);
+  if (!grid) return;
+  grid.innerHTML = data.ideas.map(idea => {
+    const evidenceHtml = (idea.evidence || []).map(ev =>
+      `<li><span class="src-tag source-badge ${ev.source}">${SRC_BADGE_LABEL[ev.source]||ev.source}</span><span>${ev.data}</span></li>`
+    ).join('');
+    const prioBadge = idea.priority ? `<span class="priority-badge priority-${idea.priority}">${PRIO_LABEL[idea.priority]}</span>` : '';
+    return `<div class="idea-card">
+<div style="display:flex;align-items:center;gap:8px">
+<div class="idea-cat-tag idea-cat-${idea.category}">${idea.category_label}</div>
+${prioBadge}
+</div>
+<div class="idea-title">${idea.title}</div>
+<div class="idea-row"><span class="label-text">📊 データ根拠</span><ul class="evidence-list">${evidenceHtml}</ul></div>
+<div class="idea-row"><span class="label-text">💡 提案アクション</span>${idea.action}</div>
+${idea.impact_text ? `<div class="idea-impact-pill">想定インパクト: ${idea.impact_text}</div>` : ''}
+</div>`;
+  }).join('');
+}
+
+// Auto-load when event tabs are opened
+document.addEventListener('DOMContentLoaded', () => {
+  const tabIdeasMap = {
+    shiki: 'shiki-aggregate',
+    sengoku: 'sengoku-hanabi-2025',
+    factory: '360-of-2025'
+  };
+  Object.entries(tabIdeasMap).forEach(([ctx, eventId]) => {
+    document.querySelectorAll(`.tab[data-target="${ctx}"]`).forEach(t => {
+      t.addEventListener('click', () => setTimeout(() => loadIdeas(eventId, ctx), 100));
+    });
+  });
+});
+
+</script>
+</body>
+</html>

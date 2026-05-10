@@ -1,0 +1,19 @@
+{
+  "name": "yonezawa-festival-dashboard",
+  "version": "0.1.0",
+  "description": "米沢主要イベント データ分析ダッシュボード｜プラットヨネザワ／米沢観光推進機構",
+  "private": true,
+  "scripts": {
+    "ingest": "tsx scripts/ingest.ts",
+    "ingest:dry": "tsx scripts/ingest.ts --dry-run",
+    "validate": "tsx scripts/validate.ts",
+    "serve": "npx http-server -p 8080 -c-1 .",
+    "sns-process": "tsx scripts/sns-process.ts"
+  },
+  "devDependencies": {
+    "csv-parse": "^5.5.6",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.5.0"
+  }
+}
